@@ -1,0 +1,28 @@
+Fetching https://jkanime.net/enen-no-shouboutai-san-no-shou-part-2/6/...
+Status Code: 200
+
+--- Video Servers (.bg-servers .server) ---
+Found 0 servers.
+
+--- Iframes ---
+
+--- Scripts with 'video' ---
+ - Script found: 
+$(function () {
+
+const units = ['bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+
+function...
+ - Script found: 
+        var video = [];
+
+                            video[0] = '<iframe class="player_conte" src="...
+ - Script found: 
+        var currentLang = $("#deflang").val();
+
+        //Idioma default
+        function idioma_de...
+ - Script found: 
+        $(document).ready(function () {
+            idioma_default();
+        var jkdefault = "http...

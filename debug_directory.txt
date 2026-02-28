@@ -1,0 +1,36 @@
+Fetching https://jkanime.net/directorio/...
+Status Code: 200
+Content Length: 69421
+
+--- Keyword Search ---
+'One Piece' NOT found.
+Found 'Naruto'!
+Context: ...l, anime online free, anime online latino, anime online bleach, animes, anime, ecchi, anime online, Naruto Shippuden, Anime online, Anime en Descarga Directa, Ver Anime Online."/>
+	<meta property="og:...
+'Dragon Ball' NOT found.
+'Monster' NOT found.
+'Bleach' NOT found.
+
+--- Script Sources ---
+Src: https://cdn.jkdesa.com/assets3/js/jquery-3.3.1.min.js?v=2.0.178
+Src: https://cdnjs.cloudflare.com/ajax/libs/pusher/8.3.0/pusher.min.js
+Src: https://cdnjs.cloudflare.com/ajax/libs/laravel-echo/2.2.4/echo.iife.min.js
+Src: https://cdn.jkdesa.com/assets3/js/bootstrap.min.js?v=2.0.178
+Src: https://cdn.jkdesa.com/assets3/js/player.js?v=2.0.178
+Src: https://cdn.jkdesa.com/assets3/js/jquery.nice-select.min.js?v=2.0.178
+Src: https://cdn.jkdesa.com/assets3/js/mixitup.min.js?v=2.0.178
+Src: https://cdn.jkdesa.com/assets3/js/jquery.slicknav.js?v=2.0.178
+Src: https://cdn.jkdesa.com/assets3/js/owl.carousel.min.js?v=2.0.178
+Src: https://cdn.jkdesa.com/assets3/js/jquery.simplemodal.js?v=2.0.178
+Src: https://cdn.jkdesa.com/assets3/js/jquery.toast.js?v=2.0.178
+Src: https://cdn.jkdesa.com/assets3/js/jquery-confirm.js?v=2.0.178
+Src: https://cdn.jkdesa.com/assets3/js/bot-detector.js?v=2.0.178
+Src: https://cdn.jkdesa.com/assets3/js/history.js?v=2.0.178
+Src: https://cdn.jkdesa.com/assets3/js/notify.js?v=2.0.178
+Src: https://cdn.jkdesa.com/assets3/js/main.js?v=2.0.178
+Src: https://www.googletagmanager.com/gtag/js?id=G-ZXZ6QXBP06
+Src: https://cvt-s2.agl003.com/o/s/114ceb8fd4b175d08f041c62576b2f82.js
+Src: https://stats.jkdesa.com/js/script.js
+Src: //ak.cabletsglazy.com/r4N20dWorbFtX/128512
+
+--- Inline Ajax Scripts ---

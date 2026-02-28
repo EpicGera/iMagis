@@ -1,0 +1,14 @@
+Fetching https://jkanime.net/ajax/ajax_search/?q=Naruto...
+Status Code: 404
+Content: {
+    "message": ""
+}
+
+---
+Fetching https://jkanime.net/ajax_search?q=Naruto...
+Status Code: 404
+Content: {
+    "message": ""
+}
+
+---

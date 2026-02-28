@@ -1,0 +1,50 @@
+[
+    {
+        "merged": "com.example.imagis.app-mergeDebugResources-40:/layout/item_torrent_result.xml",
+        "source": "com.example.imagis.app-main-43:/layout/item_torrent_result.xml"
+    },
+    {
+        "merged": "com.example.imagis.app-mergeDebugResources-40:/layout/activity_anime.xml",
+        "source": "com.example.imagis.app-main-43:/layout/activity_anime.xml"
+    },
+    {
+        "merged": "com.example.imagis.app-mergeDebugResources-40:/layout/activity_downloads.xml",
+        "source": "com.example.imagis.app-main-43:/layout/activity_downloads.xml"
+    },
+    {
+        "merged": "com.example.imagis.app-mergeDebugResources-40:/layout/activity_player.xml",
+        "source": "com.example.imagis.app-main-43:/layout/activity_player.xml"
+    },
+    {
+        "merged": "com.example.imagis.app-mergeDebugResources-40:/layout/dialog_torrent_select.xml",
+        "source": "com.example.imagis.app-main-43:/layout/dialog_torrent_select.xml"
+    },
+    {
+        "merged": "com.example.imagis.app-mergeDebugResources-40:/layout/activity_iptv.xml",
+        "source": "com.example.imagis.app-main-43:/layout/activity_iptv.xml"
+    },
+    {
+        "merged": "com.example.imagis.app-mergeDebugResources-40:/layout/activity_details.xml",
+        "source": "com.example.imagis.app-main-43:/layout/activity_details.xml"
+    },
+    {
+        "merged": "com.example.imagis.app-mergeDebugResources-40:/layout/activity_main.xml",
+        "source": "com.example.imagis.app-main-43:/layout/activity_main.xml"
+    },
+    {
+        "merged": "com.example.imagis.app-mergeDebugResources-40:/layout/item_ddl_result.xml",
+        "source": "com.example.imagis.app-main-43:/layout/item_ddl_result.xml"
+    },
+    {
+        "merged": "com.example.imagis.app-mergeDebugResources-40:/layout/overlay_buffering.xml",
+        "source": "com.example.imagis.app-main-43:/layout/overlay_buffering.xml"
+    },
+    {
+        "merged": "com.example.imagis.app-mergeDebugResources-40:/layout/activity_webview.xml",
+        "source": "com.example.imagis.app-main-43:/layout/activity_webview.xml"
+    },
+    {
+        "merged": "com.example.imagis.app-mergeDebugResources-40:/layout/activity_video_player.xml",
+        "source": "com.example.imagis.app-main-43:/layout/activity_video_player.xml"
+    }
+]

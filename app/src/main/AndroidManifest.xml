@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-feature android:name="android.software.leanback" android:required="true" />
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+
+    <application
+        android:allowBackup="true"
+        android:icon="@drawable/app_icon_placeholder"
+        android:label="iMagis"
+        android:usesCleartextTraffic="true"
+        android:banner="@drawable/app_banner"
+        android:theme="@style/Theme.Leanback">
+        
+        <activity
+            android:name=".ui.MainActivity"
+            android:exported="true"
+            android:screenOrientation="landscape">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity>
+        
+        <activity android:name=".ui.AnimeActivity" />
+        <activity android:name=".ui.IptvActivity" />
+
+        <activity android:name=".ui.WebViewActivity" 
+                  android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|uiMode" />
+        <activity android:name=".ui.PlayerActivity" 
+                  android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|uiMode"
+                  android:launchMode="singleTop" />
+                  
+        <activity
+            android:name=".ui.DetailsActivity"
+            android:theme="@style/Theme.Leanback.Details" />
+            
+        <activity
+            android:name=".ui.VideoPlayerActivity"
+            android:theme="@style/Theme.AppCompat.NoActionBar"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|uiMode"
+            android:launchMode="singleTop" />
+
+        <activity 
+            android:name=".ui.SettingsActivity" 
+            android:theme="@style/Theme.Leanback.GuidedStep" />
+
+        <activity android:name=".ui.DownloadsActivity" />
+
+        <!-- FileProvider for sharing torrent files with external players (VLC, MX Player) -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_provider_paths" />
+        </provider>
+    </application>
+
+</manifest>

@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/black">
+
+    <WebView
+        android:id="@+id/webview"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:focusable="true"
+        android:focusableInTouchMode="true" />
+
+    <ProgressBar
+        android:id="@+id/loading_spinner"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:indeterminateTint="@color/white"
+        android:visibility="gone" />
+
+    <!-- Control Bar Overlay -->
+    <LinearLayout
+        android:id="@+id/control_bar_container"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:orientation="horizontal"
+        android:background="#99000000"
+        android:padding="8dp"
+        android:layout_marginBottom="20dp">
+
+        <ImageButton
+            android:id="@+id/btn_home_web"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@android:drawable/ic_menu_rotate"
+            android:background="#44FFFFFF"
+            android:contentDescription="Reload"
+            android:tint="@color/white"
+            android:padding="12dp" />
+
+        <ImageButton
+            android:id="@+id/btn_search_web"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@android:drawable/ic_menu_search"
+            android:background="#44FFFFFF"
+            android:contentDescription="Search"
+            android:tint="@color/white"
+            android:layout_marginStart="16dp"
+            android:padding="12dp" />
+            
+        <ImageButton
+            android:id="@+id/btn_filter_web"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@android:drawable/ic_menu_sort_by_size"
+            android:background="#44FFFFFF"
+            android:contentDescription="A-Z Filter"
+            android:tint="@color/white"
+            android:layout_marginStart="16dp"
+            android:padding="12dp" />
+
+    </LinearLayout>
+
+</FrameLayout>

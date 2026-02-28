@@ -1,0 +1,11 @@
+Fetching https://jkanime.net/sitemap.xml...
+Status Code: 200
+Content Start:
+<sitemapindex xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/siteindex.xsd" xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><sitemap>
+		<loc>https://jkanime.net/sitemap-misc.xml</loc>
+		<lastmod>2026-02-14T15:20:51+00:00</lastmod>
+		</sitemap><sitemap>
+		<loc>https://jkanime.net/sitemap-episodios.xml</loc>
+		<lastmod>2026-02-14T15:20:51+00:00</lastmod>
+		</sitemap><sitemap>
+		<l

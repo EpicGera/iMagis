@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="@drawable/torrent_item_selector"
+    android:descendantFocusability="blocksDescendants">
+
+    <!-- Row 1: Source badge + Title -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <!-- Source badge -->
+        <TextView
+            android:id="@+id/source_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="PirateBay"
+            android:textColor="#1A1A2E"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="4dp"
+            android:layout_marginEnd="12dp" />
+
+        <!-- Torrent title -->
+        <TextView
+            android:id="@+id/torrent_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Movie Title"
+            android:textColor="#E0E0E0"
+            android:textSize="16sp"
+            android:maxLines="2"
+            android:ellipsize="end" />
+    </LinearLayout>
+
+    <!-- Row 2: Seeds + Size -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="6dp">
+
+        <TextView
+            android:id="@+id/torrent_seeds"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="🌱 42 seeds"
+            android:textColor="#4CAF50"
+            android:textSize="14sp"
+            android:layout_marginEnd="24dp" />
+
+        <TextView
+            android:id="@+id/torrent_size"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="📦 1.4 GB"
+            android:textColor="#90CAF9"
+            android:textSize="14sp" />
+    </LinearLayout>
+
+</LinearLayout>

@@ -1,0 +1,44 @@
+Fetching https://jkanime.net/sitemap-animes.xml...
+Status Code: 200
+Content Start:
+<?xml version="1.0" encoding="UTF-8"?>
+		<urlset xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd" xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>
+
+-------------------
+Fetching https://jkanime.net/letra/a/...
+Status Code: 200
+Content Start:
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+"https://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="https://www.w3.org/1999/xhtml">
+    <head>
+    <title>Animes con la letra a — JkAnime</title>
+    <meta name="csrf-token" content="CzaBHhGjLdbFuG2Ub6uF8bgyLMn3phHwdEhASKuF">
+    <meta name="description" content="La mejor pagina para Ver Anime Online Gratis, mira los ultimos capitulos de los animes del momento sin ninguna restriccion | ver Online y descargar"/>
+	
+--- Link Check ---
+Href: https://jkanime.net Text: 
+Href: https://jkanime.net/dash/editar-perfil Text: Editar perfil
+Href: https://jkanime.net/usuario/$me Text: Mi perfil
+Href: https://jkanime.net/dash/comentarios Text: Comentarios
+Href: https://jkanime.net/dash/solicitudes Text: Solicitudes
+
+-------------------
+Fetching https://jkanime.net/horario/...
+Status Code: 200
+Content Start:
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+"https://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="https://www.w3.org/1999/xhtml">
+    <head>
+    <title>Horario Temporada Invierno 2026 ( Enero - Febrero - Marzo )</title>
+    <meta name="csrf-token" content="ZHww5FWukrYjYAvaETqg7kE13rZ9DPFLqKq0GLFs">
+    <meta name="description" content="La mejor pagina para Ver Anime Online Gratis, mira los ultimos capitulos de los animes del momento sin ninguna restriccion |
+--- Link Check ---
+Href: https://jkanime.net Text: 
+Href: https://jkanime.net/dash/editar-perfil Text: Editar perfil
+Href: https://jkanime.net/usuario/$me Text: Mi perfil
+Href: https://jkanime.net/dash/comentarios Text: Comentarios
+Href: https://jkanime.net/dash/solicitudes Text: Solicitudes
+
+-------------------

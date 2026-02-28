@@ -1,0 +1,78 @@
+[
+    {
+        "merged": "com.example.imagis.app-debug-41:/layout_item_ddl_result.xml.flat",
+        "source": "com.example.imagis.app-main-43:/layout/item_ddl_result.xml"
+    },
+    {
+        "merged": "com.example.imagis.app-debug-41:/drawable_progress_bar_style.xml.flat",
+        "source": "com.example.imagis.app-main-43:/drawable/progress_bar_style.xml"
+    },
+    {
+        "merged": "com.example.imagis.app-debug-41:/drawable_app_banner.xml.flat",
+        "source": "com.example.imagis.app-main-43:/drawable/app_banner.xml"
+    },
+    {
+        "merged": "com.example.imagis.app-debug-41:/layout_dialog_torrent_select.xml.flat",
+        "source": "com.example.imagis.app-main-43:/layout/dialog_torrent_select.xml"
+    },
+    {
+        "merged": "com.example.imagis.app-debug-41:/layout_activity_iptv.xml.flat",
+        "source": "com.example.imagis.app-main-43:/layout/activity_iptv.xml"
+    },
+    {
+        "merged": "com.example.imagis.app-debug-41:/layout_overlay_buffering.xml.flat",
+        "source": "com.example.imagis.app-main-43:/layout/overlay_buffering.xml"
+    },
+    {
+        "merged": "com.example.imagis.app-debug-41:/drawable_torrent_item_selector.xml.flat",
+        "source": "com.example.imagis.app-main-43:/drawable/torrent_item_selector.xml"
+    },
+    {
+        "merged": "com.example.imagis.app-debug-41:/layout_activity_main.xml.flat",
+        "source": "com.example.imagis.app-main-43:/layout/activity_main.xml"
+    },
+    {
+        "merged": "com.example.imagis.app-debug-41:/layout_activity_webview.xml.flat",
+        "source": "com.example.imagis.app-main-43:/layout/activity_webview.xml"
+    },
+    {
+        "merged": "com.example.imagis.app-debug-41:/drawable_app_icon_placeholder.xml.flat",
+        "source": "com.example.imagis.app-main-43:/drawable/app_icon_placeholder.xml"
+    },
+    {
+        "merged": "com.example.imagis.app-debug-41:/drawable_ic_tv_placeholder.xml.flat",
+        "source": "com.example.imagis.app-main-43:/drawable/ic_tv_placeholder.xml"
+    },
+    {
+        "merged": "com.example.imagis.app-debug-41:/layout_activity_video_player.xml.flat",
+        "source": "com.example.imagis.app-main-43:/layout/activity_video_player.xml"
+    },
+    {
+        "merged": "com.example.imagis.app-debug-41:/layout_activity_downloads.xml.flat",
+        "source": "com.example.imagis.app-main-43:/layout/activity_downloads.xml"
+    },
+    {
+        "merged": "com.example.imagis.app-debug-41:/layout_activity_anime.xml.flat",
+        "source": "com.example.imagis.app-main-43:/layout/activity_anime.xml"
+    },
+    {
+        "merged": "com.example.imagis.app-debug-41:/xml_file_provider_paths.xml.flat",
+        "source": "com.example.imagis.app-main-43:/xml/file_provider_paths.xml"
+    },
+    {
+        "merged": "com.example.imagis.app-debug-41:/layout_activity_details.xml.flat",
+        "source": "com.example.imagis.app-main-43:/layout/activity_details.xml"
+    },
+    {
+        "merged": "com.example.imagis.app-debug-41:/layout_item_torrent_result.xml.flat",
+        "source": "com.example.imagis.app-main-43:/layout/item_torrent_result.xml"
+    },
+    {
+        "merged": "com.example.imagis.app-debug-41:/drawable_ic_anime_placeholder.xml.flat",
+        "source": "com.example.imagis.app-main-43:/drawable/ic_anime_placeholder.xml"
+    },
+    {
+        "merged": "com.example.imagis.app-debug-41:/layout_activity_player.xml.flat",
+        "source": "com.example.imagis.app-main-43:/layout/activity_player.xml"
+    }
+]

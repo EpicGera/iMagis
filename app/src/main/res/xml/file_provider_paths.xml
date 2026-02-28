@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Cache directory where TorrentStream saves downloaded files -->
+    <cache-path name="cache" path="." />
+    <!-- External cache if torrent saves there -->
+    <external-cache-path name="ext_cache" path="." />
+    <!-- Files directory fallback -->
+    <files-path name="files" path="." />
+</paths>
