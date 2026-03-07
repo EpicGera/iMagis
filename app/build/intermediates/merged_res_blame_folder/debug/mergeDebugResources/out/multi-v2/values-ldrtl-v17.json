@@ -1,7 +1,7 @@
 {
     "logs": [
         {
-            "outputFile": "com.example.imagis.app-mergeDebugResources-39:/values-ldrtl-v17/values-ldrtl-v17.xml",
+            "outputFile": "com.example.imagis.app-mergeDebugResources-70:/values-ldrtl-v17/values-ldrtl-v17.xml",
             "map": [
                 {
                     "source": "C:\\Users\\JDB\\.gradle\\caches\\8.13\\transforms\\eb8b0c6c8548fc7a2efc7fddf1a52273\\transformed\\leanback-1.0.0\\res\\values-ldrtl-v17\\values-ldrtl-v17.xml",

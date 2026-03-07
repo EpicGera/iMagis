@@ -1,3 +1,7 @@
+// FILE_PATH: app/build.gradle.kts
+// ACTION: OVERWRITE
+// DESCRIPTION: Locked-down Gradle file with WorkManager and JLibTorrent
+// ---------------------------------------------------------
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -23,14 +27,18 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions {
-        jvmTarget = "1.8"
+        jvmTarget = "17"
     }
     buildFeatures {
         viewBinding = true
+        compose = true
+    }
+    composeOptions {
+        kotlinCompilerExtensionVersion = "1.5.11"
     }
 }
 
@@ -65,6 +73,40 @@ dependencies {
     implementation("androidx.room:room-ktx:$room_version")
     kapt("androidx.room:room-compiler:$room_version")
     
+    // ---------- NEW DEPENDENCIES ----------
+    // WorkManager
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
+    
+    // Local HTTP Server
+    implementation("org.nanohttpd:nanohttpd:2.3.1")
+    
     // P2P Streaming Magic (Stremio-like)
     implementation("com.github.se-bastiaan:TorrentStream-Android:master-SNAPSHOT")
+
+    // ---------- COMPOSE FOR TV ----------
+    // Compose BOM — single source of truth for Compose versions
+    val composeBom = platform("androidx.compose:compose-bom:2024.02.02")
+    implementation(composeBom)
+
+    // Compose for TV
+    implementation("androidx.tv:tv-foundation:1.0.0-alpha11")
+    implementation("androidx.tv:tv-material:1.0.0")
+
+    // Core Compose (versions pinned by BOM)
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.ui:ui-tooling-preview")
+    implementation("androidx.compose.foundation:foundation")
+    implementation("androidx.compose.material3:material3")
+    implementation("androidx.activity:activity-compose:1.8.2")
+
+    // Coil — async image loading for Compose
+    implementation("io.coil-kt:coil-compose:2.6.0")
+
+    // Debug tooling
+    debugImplementation("androidx.compose.ui:ui-tooling")
+    
+    // Testing
+    testImplementation("junit:junit:4.13.2")
+    androidTestImplementation("androidx.test.ext:junit:1.1.5")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
 }

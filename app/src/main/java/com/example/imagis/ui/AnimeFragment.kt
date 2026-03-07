@@ -18,7 +18,7 @@ class AnimeFragment : VerticalGridSupportFragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        title = "Latest Anime"
+        title = getString(R.string.title_latest_anime)
         setupFragment()
         loadData()
     }
@@ -33,11 +33,11 @@ class AnimeFragment : VerticalGridSupportFragment() {
 
         onItemViewClickedListener = OnItemViewClickedListener { _, item, _, _ ->
             if (item is AnimeEpisode) {
-                // TODO: Show Server Selection Dialog or Play directly
-                // For now, we launch player with the episode URL to extract video there
-                val intent = android.content.Intent(requireContext(), PlayerActivity::class.java)
-                intent.putExtra("VIDEO_URL", item.episodeUrl) 
-                intent.putExtra("IS_VOD_PAGE", true) // Flag to tell player to scrape this page
+                val intent = android.content.Intent(requireContext(), AnimeDetailsActivity::class.java)
+                intent.putExtra("ANIME_TITLE", item.title)
+                intent.putExtra("ANIME_EPISODE", item.episodeNumber)
+                intent.putExtra("ANIME_IMAGE", item.imageUrl)
+                intent.putExtra("ANIME_URL", item.episodeUrl)
                 startActivity(intent)
             }
         }
@@ -48,13 +48,13 @@ class AnimeFragment : VerticalGridSupportFragment() {
             try {
                 val episodes = JkanimeScraper.getLatestEpisodes()
                 if (episodes.isEmpty()) {
-                    Toast.makeText(requireContext(), "No episodes found (Parse Empty)", Toast.LENGTH_LONG).show()
+                    Toast.makeText(requireContext(), R.string.error_no_episodes_found, Toast.LENGTH_LONG).show()
                 } else {
                     episodes.forEach { mAdapter.add(it) }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-                Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                Toast.makeText(requireContext(), getString(R.string.error_generic, e.message), Toast.LENGTH_LONG).show()
             }
         }
     }

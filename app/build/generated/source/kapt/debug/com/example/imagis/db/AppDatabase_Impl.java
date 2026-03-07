@@ -21,29 +21,35 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import javax.annotation.processing.Generated;
 
+@Generated("androidx.room.RoomProcessor")
 @SuppressWarnings({"unchecked", "deprecation"})
 public final class AppDatabase_Impl extends AppDatabase {
   private volatile ChannelDao _channelDao;
 
   private volatile FavoritesDao _favoritesDao;
 
+  private volatile WatchHistoryDao _watchHistoryDao;
+
   @Override
   @NonNull
   protected SupportSQLiteOpenHelper createOpenHelper(@NonNull final DatabaseConfiguration config) {
-    final SupportSQLiteOpenHelper.Callback _openCallback = new RoomOpenHelper(config, new RoomOpenHelper.Delegate(3) {
+    final SupportSQLiteOpenHelper.Callback _openCallback = new RoomOpenHelper(config, new RoomOpenHelper.Delegate(4) {
       @Override
       public void createAllTables(@NonNull final SupportSQLiteDatabase db) {
         db.execSQL("CREATE TABLE IF NOT EXISTS `channels` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `lowercaseName` TEXT NOT NULL, `streamUrl` TEXT NOT NULL, `logoUrl` TEXT, `groupName` TEXT, `isSeries` INTEGER NOT NULL, `season` INTEGER, `episode` INTEGER)");
         db.execSQL("CREATE TABLE IF NOT EXISTS `favorites` (`id` TEXT NOT NULL, `title` TEXT NOT NULL, `posterUrl` TEXT NOT NULL, `type` TEXT NOT NULL, `timestamp` INTEGER NOT NULL, PRIMARY KEY(`id`))");
+        db.execSQL("CREATE TABLE IF NOT EXISTS `watch_history` (`id` TEXT NOT NULL, `title` TEXT NOT NULL, `episodeLabel` TEXT, `status` TEXT NOT NULL, `positionMs` INTEGER NOT NULL, `durationMs` INTEGER NOT NULL, `posterUrl` TEXT, `videoUrl` TEXT, `type` TEXT NOT NULL, `timestamp` INTEGER NOT NULL, PRIMARY KEY(`id`))");
         db.execSQL("CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)");
-        db.execSQL("INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'b6f0ecd3057ab3514dd5a849d1980f9c')");
+        db.execSQL("INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'b93c44478c1ab4948b850403263662aa')");
       }
 
       @Override
       public void dropAllTables(@NonNull final SupportSQLiteDatabase db) {
         db.execSQL("DROP TABLE IF EXISTS `channels`");
         db.execSQL("DROP TABLE IF EXISTS `favorites`");
+        db.execSQL("DROP TABLE IF EXISTS `watch_history`");
         final List<? extends RoomDatabase.Callback> _callbacks = mCallbacks;
         if (_callbacks != null) {
           for (RoomDatabase.Callback _callback : _callbacks) {
@@ -121,9 +127,29 @@ public final class AppDatabase_Impl extends AppDatabase {
                   + " Expected:\n" + _infoFavorites + "\n"
                   + " Found:\n" + _existingFavorites);
         }
+        final HashMap<String, TableInfo.Column> _columnsWatchHistory = new HashMap<String, TableInfo.Column>(10);
+        _columnsWatchHistory.put("id", new TableInfo.Column("id", "TEXT", true, 1, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsWatchHistory.put("title", new TableInfo.Column("title", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsWatchHistory.put("episodeLabel", new TableInfo.Column("episodeLabel", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsWatchHistory.put("status", new TableInfo.Column("status", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsWatchHistory.put("positionMs", new TableInfo.Column("positionMs", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsWatchHistory.put("durationMs", new TableInfo.Column("durationMs", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsWatchHistory.put("posterUrl", new TableInfo.Column("posterUrl", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsWatchHistory.put("videoUrl", new TableInfo.Column("videoUrl", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsWatchHistory.put("type", new TableInfo.Column("type", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsWatchHistory.put("timestamp", new TableInfo.Column("timestamp", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        final HashSet<TableInfo.ForeignKey> _foreignKeysWatchHistory = new HashSet<TableInfo.ForeignKey>(0);
+        final HashSet<TableInfo.Index> _indicesWatchHistory = new HashSet<TableInfo.Index>(0);
+        final TableInfo _infoWatchHistory = new TableInfo("watch_history", _columnsWatchHistory, _foreignKeysWatchHistory, _indicesWatchHistory);
+        final TableInfo _existingWatchHistory = TableInfo.read(db, "watch_history");
+        if (!_infoWatchHistory.equals(_existingWatchHistory)) {
+          return new RoomOpenHelper.ValidationResult(false, "watch_history(com.example.imagis.db.WatchHistoryEntity).\n"
+                  + " Expected:\n" + _infoWatchHistory + "\n"
+                  + " Found:\n" + _existingWatchHistory);
+        }
         return new RoomOpenHelper.ValidationResult(true, null);
       }
-    }, "b6f0ecd3057ab3514dd5a849d1980f9c", "4cd0907e4cc231423f1529f1a7045e61");
+    }, "b93c44478c1ab4948b850403263662aa", "87ec8ebe43831d124879f750e0bf44e7");
     final SupportSQLiteOpenHelper.Configuration _sqliteConfig = SupportSQLiteOpenHelper.Configuration.builder(config.context).name(config.name).callback(_openCallback).build();
     final SupportSQLiteOpenHelper _helper = config.sqliteOpenHelperFactory.create(_sqliteConfig);
     return _helper;
@@ -134,7 +160,7 @@ public final class AppDatabase_Impl extends AppDatabase {
   protected InvalidationTracker createInvalidationTracker() {
     final HashMap<String, String> _shadowTablesMap = new HashMap<String, String>(0);
     final HashMap<String, Set<String>> _viewTables = new HashMap<String, Set<String>>(0);
-    return new InvalidationTracker(this, _shadowTablesMap, _viewTables, "channels","favorites");
+    return new InvalidationTracker(this, _shadowTablesMap, _viewTables, "channels","favorites","watch_history");
   }
 
   @Override
@@ -145,6 +171,7 @@ public final class AppDatabase_Impl extends AppDatabase {
       super.beginTransaction();
       _db.execSQL("DELETE FROM `channels`");
       _db.execSQL("DELETE FROM `favorites`");
+      _db.execSQL("DELETE FROM `watch_history`");
       super.setTransactionSuccessful();
     } finally {
       super.endTransaction();
@@ -161,6 +188,7 @@ public final class AppDatabase_Impl extends AppDatabase {
     final HashMap<Class<?>, List<Class<?>>> _typeConvertersMap = new HashMap<Class<?>, List<Class<?>>>();
     _typeConvertersMap.put(ChannelDao.class, ChannelDao_Impl.getRequiredConverters());
     _typeConvertersMap.put(FavoritesDao.class, FavoritesDao_Impl.getRequiredConverters());
+    _typeConvertersMap.put(WatchHistoryDao.class, WatchHistoryDao_Impl.getRequiredConverters());
     return _typeConvertersMap;
   }
 
@@ -203,6 +231,20 @@ public final class AppDatabase_Impl extends AppDatabase {
           _favoritesDao = new FavoritesDao_Impl(this);
         }
         return _favoritesDao;
+      }
+    }
+  }
+
+  @Override
+  public WatchHistoryDao watchHistoryDao() {
+    if (_watchHistoryDao != null) {
+      return _watchHistoryDao;
+    } else {
+      synchronized(this) {
+        if(_watchHistoryDao == null) {
+          _watchHistoryDao = new WatchHistoryDao_Impl(this);
+        }
+        return _watchHistoryDao;
       }
     }
   }

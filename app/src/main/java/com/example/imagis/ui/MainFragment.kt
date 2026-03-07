@@ -23,6 +23,14 @@ data class MenuOption(
     val type: Int
 )
 
+// Data class for platform-specific menu cards
+data class PlatformMenuOption(
+    val title: String,
+    val description: String,
+    val iconResId: Int,
+    val platformId: Int
+)
+
 class MainFragment : BrowseSupportFragment() {
 
     companion object {
@@ -31,6 +39,7 @@ class MainFragment : BrowseSupportFragment() {
         const val TYPE_DIRECTORY = 3
         const val TYPE_SETTINGS = 4
         const val TYPE_DOWNLOADS = 5
+        const val TYPE_PLATFORM = 6
     }
 
     override fun onActivityCreated(savedInstanceState: Bundle?) {
@@ -85,10 +94,27 @@ class MainFragment : BrowseSupportFragment() {
         settingsAdapter.add(MenuOption("Downloads", "Active P2P Transfers", android.R.drawable.stat_sys_download, TYPE_DOWNLOADS))
         settingsAdapter.add(MenuOption("Settings", "Add Custom M3U Playlists", android.R.drawable.ic_menu_preferences, TYPE_SETTINGS))
 
+        // Row: Browse by Platform
+        val platformAdapter = ArrayObjectAdapter(cardPresenter)
+        platformAdapter.add(PlatformMenuOption("\uD83D\uDD34 Netflix", "Browse Netflix", R.drawable.ic_netflix, 8))
+        platformAdapter.add(PlatformMenuOption("\uD83D\uDD35 Amazon Prime", "Browse Prime Video", R.drawable.ic_prime, 9))
+        platformAdapter.add(PlatformMenuOption("\uD83D\uDFE2 Hulu", "Browse Hulu", R.drawable.ic_hulu, 15))
+        platformAdapter.add(PlatformMenuOption("\u26AA Apple TV+", "Browse Apple TV+", R.drawable.ic_appletv, 350))
+        platformAdapter.add(PlatformMenuOption("\uD83D\uDFE3 Disney+", "Browse Disney+", R.drawable.ic_disneyplus, 337))
+        platformAdapter.add(PlatformMenuOption("\uD83D\uDFE1 Max", "Browse Max (HBO)", R.drawable.ic_max, 1899))
+        platformAdapter.add(PlatformMenuOption("\uD83D\uDD35 Paramount+", "Browse Paramount+", R.drawable.ic_paramount, 531))
+        platformAdapter.add(PlatformMenuOption("\uD83D\uDFE0 Peacock", "Browse Peacock", R.drawable.ic_peacock, 386))
+        platformAdapter.add(PlatformMenuOption("\uD83D\uDFE0 Crunchyroll", "Browse Crunchyroll", R.drawable.ic_crunchyroll, 283))
+        platformAdapter.add(PlatformMenuOption("\u26AB Starz", "Browse Starz", R.drawable.ic_starz, 43))
+
         // ** Restored: Latest Episodes Row **
         val latestEpisodesAdapter = ArrayObjectAdapter(CardPresenter()) // New Presenter for episodes
         val headerLatest = HeaderItem(0, "Latest Episodes")
         rowsAdapter.add(ListRow(headerLatest, latestEpisodesAdapter))
+
+        // Add Platform row
+        val headerPlatform = HeaderItem(4, "Browse by Platform")
+        rowsAdapter.add(ListRow(headerPlatform, platformAdapter))
 
         // Add Menu rows
         val header1 = HeaderItem(1, "Menu")
@@ -103,10 +129,31 @@ class MainFragment : BrowseSupportFragment() {
         adapter = rowsAdapter
         
         // Load data in background
+        loadWatchHistory(rowsAdapter)
         loadLatestEpisodes(latestEpisodesAdapter)
         loadVodContent(rowsAdapter)
         loadTmdbContent(rowsAdapter)
         loadFavorites(rowsAdapter)
+    }
+
+    private fun loadWatchHistory(adapter: ArrayObjectAdapter) {
+        GlobalScope.launch(Dispatchers.IO) {
+            try {
+                val db = com.example.imagis.db.AppDatabase.getDatabase(requireContext())
+                val history = db.watchHistoryDao().getAll()
+
+                if (history.isNotEmpty()) {
+                    launch(Dispatchers.Main) {
+                        val listRowAdapter = ArrayObjectAdapter(WatchHistoryCardPresenter())
+                        history.forEach { listRowAdapter.add(it) }
+                        val header = HeaderItem(400, "▶️ Continue Watching")
+                        adapter.add(0, ListRow(header, listRowAdapter))
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
     }
 
     private fun loadLatestEpisodes(adapter: ArrayObjectAdapter) {
@@ -172,97 +219,79 @@ class MainFragment : BrowseSupportFragment() {
     // List for Search/"Magic Linkage" is now in ChannelStore
     // private val allVodItems = java.util.Collections.synchronizedList(mutableListOf<com.example.imagis.data.VodContent>())
 
-    // ... loadRows ...
-
-    private fun loadVodContent(adapter: ArrayObjectAdapter) {
+    // --- TMDB Rows Integration ---
+    private fun loadTMDBRows(adapter: ArrayObjectAdapter) {
         GlobalScope.launch(Dispatchers.IO) {
             try {
-                // Clear previous items in global store
-                com.example.imagis.data.ChannelStore.globalVodList.clear()
-                
-                // Use a local ref for this function scope to populate adapters
-                val localAllItems = mutableListOf<com.example.imagis.data.VodContent>()
+                // 1. Trending
+                val trending = com.example.imagis.api.TmdbApiClient.service.getTrending(com.example.imagis.api.TmdbApiClient.API_KEY)
+                addTmdbRow(adapter, "🔥 Trending Now", trending.results, 100)
 
-                // Fetch Argentina Live (Official Sesteva List)
-                val urlArgentina = java.net.URL("https://sesteva.github.io/m3u/argentina.m3u")
-                val contentArgentina = urlArgentina.readText()
-                val argentinaItems = com.example.imagis.utils.VodParser.parse(contentArgentina) 
-                localAllItems.addAll(argentinaItems)
+                // 2. Popular Movies
+                val movies = com.example.imagis.api.TmdbApiClient.service.getPopularMovies(com.example.imagis.api.TmdbApiClient.API_KEY)
+                addTmdbRow(adapter, "🍿 Popular Movies", movies.results, 101)
 
-                // Fetch Movies (General)
-                val urlMovies = java.net.URL("https://iptv-org.github.io/iptv/categories/movies.m3u")
-                val contentMovies = urlMovies.readText()
-                val movieItems = com.example.imagis.utils.VodParser.parse(contentMovies)
-                localAllItems.addAll(movieItems)
+                // 3. Top TV Series
+                val series = com.example.imagis.api.TmdbApiClient.service.getPopularSeries(com.example.imagis.api.TmdbApiClient.API_KEY)
+                addTmdbRow(adapter, "📺 Top TV Series", series.results, 102)
 
-                // Filter for "Latino/Spanish" content (approximate "Cuevana" style)
-                val latinoMovies = movieItems.filter { 
-                    it.title.contains("Spanish", ignoreCase = true) || 
-                    it.title.contains("Latino", ignoreCase = true) ||
-                    it.title.contains("ES", ignoreCase = true) ||
-                    it.category.contains("Spanish", ignoreCase = true)
-                }
-
-                // Fetch Series
-                val urlSeries = java.net.URL("https://iptv-org.github.io/iptv/categories/series.m3u")
-                val contentSeries = urlSeries.readText()
-                val seriesItems = com.example.imagis.utils.VodParser.parse(contentSeries)
-                localAllItems.addAll(seriesItems)
-                
-                // Update Global Store
-                com.example.imagis.data.ChannelStore.globalVodList.addAll(localAllItems)
-
-                // UI Updates on Main Thread
-                launch(Dispatchers.Main) {
-                    // 1. Featured/Hero Row
-                    val heroItem = latinoMovies.randomOrNull() ?: movieItems.randomOrNull()
-                    if (heroItem != null) {
-                        val heroAdapter = ArrayObjectAdapter(HeroPresenter())
-                        heroAdapter.add(heroItem)
-                        adapter.add(0, ListRow(HeaderItem(0, "Featured Movie"), heroAdapter)) 
-                    }
-                    
-                    // 2. Argentina Live (Top Priority)
-                    if (argentinaItems.isNotEmpty()) {
-                        val listRowAdapter = ArrayObjectAdapter(VodPresenter()) // Use VodPresenter (handles filtered items)
-                        argentinaItems.take(50).forEach { 
-                             listRowAdapter.add(it) 
-                        }
-                        val header = HeaderItem(10, "Argentina Live TV")
-                        adapter.add(ListRow(header, listRowAdapter))
-                    }
-
-                    // 3. Latino Movies (Cuevana Style)
-                    if (latinoMovies.isNotEmpty()) {
-                         val listRowAdapter = ArrayObjectAdapter(VodPresenter())
-                         latinoMovies.shuffled().take(50).forEach { listRowAdapter.add(it) } 
-                         val header = HeaderItem(100, "Peliculas (Cuevana Style)")
-                         adapter.add(ListRow(header, listRowAdapter))
-                    } else {
-                        // Fallback if no specific latino content found
-                         val listRowAdapter = ArrayObjectAdapter(VodPresenter())
-                         movieItems.shuffled().take(50).forEach { listRowAdapter.add(it) } 
-                         val header = HeaderItem(100, "Popular Movies")
-                         adapter.add(ListRow(header, listRowAdapter))
-                    }
-
-                    // 4. Series Row
-                    if (seriesItems.isNotEmpty()) {
-                         val listRowAdapter = ArrayObjectAdapter(VodPresenter())
-                         seriesItems.shuffled().take(50).forEach { listRowAdapter.add(it) } 
-                         val header = HeaderItem(101, "Top TV Series")
-                         adapter.add(ListRow(header, listRowAdapter))
-                    }
-                }
             } catch (e: Exception) {
                 e.printStackTrace()
             }
         }
     }
 
+    private suspend fun addTmdbRow(
+        mainAdapter: ArrayObjectAdapter, 
+        title: String, 
+        movies: List<com.example.imagis.api.Movie>, 
+        headerId: Long
+    ) {
+        kotlinx.coroutines.withContext(Dispatchers.Main) {
+            val listRowAdapter = ArrayObjectAdapter(TmdbCardPresenter())
+            movies.forEach { listRowAdapter.add(it) }
+            val header = HeaderItem(headerId, title)
+            mainAdapter.add(ListRow(header, listRowAdapter))
+        }
+    }
+
+    private fun loadVodContent(adapter: ArrayObjectAdapter) {
+        GlobalScope.launch(Dispatchers.IO) {
+            try {
+                com.example.imagis.data.ChannelStore.globalVodList.clear()
+                val localAllItems = mutableListOf<com.example.imagis.data.VodContent>()
+
+                fun fetchUrlSafe(urlString: String): String {
+                    return try { java.net.URL(urlString).readText() } catch (e: Exception) { "" }
+                }
+
+                // Argentina Live as priority VOD fallback
+                val contentArgentina = fetchUrlSafe("https://sesteva.github.io/m3u/argentina.m3u")
+                val argentinaItems = if (contentArgentina.isNotEmpty()) com.example.imagis.utils.VodParser.parse(contentArgentina) else emptyList()
+                localAllItems.addAll(argentinaItems)
+                
+                com.example.imagis.data.ChannelStore.globalVodList.addAll(localAllItems)
+
+                kotlinx.coroutines.withContext(Dispatchers.Main) {
+                    if (argentinaItems.isNotEmpty()) {
+                        val listRowAdapter = ArrayObjectAdapter(VodPresenter())
+                        argentinaItems.take(50).forEach { listRowAdapter.add(it) }
+                        val header = HeaderItem(200, "Argentina Live TV")
+                        adapter.add(ListRow(header, listRowAdapter))
+                    }
+                }
+            } catch(e: Exception) { e.printStackTrace() }
+        }
+    }
+
     private fun setupEventListeners() {
         onItemViewClickedListener = OnItemViewClickedListener { _, item, _, _ ->
-            if (item is MenuOption) {
+            if (item is PlatformMenuOption) {
+                val intent = android.content.Intent(requireContext(), PlatformBrowseActivity::class.java)
+                intent.putExtra("PLATFORM_ID", item.platformId)
+                intent.putExtra("PLATFORM_NAME", item.title.replace(Regex("^[^A-Za-z]+"), "").trim())
+                startActivity(intent)
+            } else if (item is MenuOption) {
                 when (item.type) {
                     TYPE_ANIME -> startActivity(android.content.Intent(requireContext(), AnimeActivity::class.java))
                     TYPE_DIRECTORY -> {
@@ -285,10 +314,35 @@ class MainFragment : BrowseSupportFragment() {
                 intent.putExtra("IS_VOD_PAGE", false) // Direct stream
                 startActivity(intent)
             } else if (item is com.example.imagis.api.Movie) {
-                // TMDB Selection -> Launch Details Activity
-                val intent = android.content.Intent(requireContext(), DetailsActivity::class.java)
-                intent.putExtra("MOVIE_EXTRA", item)
-                startActivity(intent)
+                // Determine if it's a TV Show or Movie based on TMDB logic
+                // TMDB API returns 'name' for TV Shows and 'title' for Movies
+                if (item.title == null && item.name != null) {
+                    // It's a TV Show
+                    val intent = android.content.Intent(requireContext(), TvSeasonsActivity::class.java)
+                    intent.putExtra("TV_SHOW_ID", item.id)
+                    intent.putExtra("TV_SHOW_NAME", item.name)
+                    startActivity(intent)
+                } else {
+                    // It's a Movie -> Launch Details Activity
+                    val intent = android.content.Intent(requireContext(), DetailsActivity::class.java)
+                    intent.putExtra("MOVIE_EXTRA", item)
+                    startActivity(intent)
+                }
+            } else if (item is com.example.imagis.db.WatchHistoryEntity) {
+                // Resume watching from saved position
+                if (!item.videoUrl.isNullOrEmpty()) {
+                    val intent = android.content.Intent(requireContext(), VideoPlayerActivity::class.java)
+                    intent.putExtra("VIDEO_URL", item.videoUrl)
+                    intent.putExtra("TITLE", item.title)
+                    intent.putExtra("EPISODE_LABEL", item.episodeLabel)
+                    intent.putExtra("CONTENT_ID", item.id)
+                    intent.putExtra("CONTENT_TYPE", item.type)
+                    intent.putExtra("POSTER_URL", item.posterUrl)
+                    intent.putExtra("RESUME_POSITION_MS", item.positionMs)
+                    startActivity(intent)
+                } else {
+                    Toast.makeText(requireContext(), "No saved stream URL for this title.", Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }
@@ -372,14 +426,23 @@ class MainFragment : BrowseSupportFragment() {
 
         override fun onBindViewHolder(viewHolder: ViewHolder, item: Any) {
             val cardView = viewHolder.view as ImageCardView
-            val option = item as MenuOption
             
-            cardView.titleText = option.title
-            cardView.contentText = option.description
-            cardView.setMainImageDimensions(300, 170)
-            
-            cardView.mainImageView.setImageResource(option.iconResId) 
-            cardView.setBackgroundColor(Color.DKGRAY)
+            when (item) {
+                is MenuOption -> {
+                    cardView.titleText = item.title
+                    cardView.contentText = item.description
+                    cardView.setMainImageDimensions(300, 170)
+                    cardView.mainImageView.setImageResource(item.iconResId)
+                    cardView.setBackgroundColor(Color.DKGRAY)
+                }
+                is PlatformMenuOption -> {
+                    cardView.titleText = item.title
+                    cardView.contentText = item.description
+                    cardView.setMainImageDimensions(300, 170)
+                    cardView.mainImageView.setImageResource(item.iconResId)
+                    cardView.setBackgroundColor(Color.parseColor("#1A1A1A"))
+                }
+            }
         }
 
         override fun onUnbindViewHolder(viewHolder: ViewHolder) {
@@ -445,6 +508,54 @@ class MainFragment : BrowseSupportFragment() {
             
             com.bumptech.glide.Glide.with(viewHolder.view.context)
                 .load(fav.posterUrl)
+                .centerCrop()
+                .placeholder(R.drawable.app_icon_placeholder)
+                .error(R.drawable.app_icon_placeholder)
+                .into(cardView.mainImageView)
+        }
+
+        override fun onUnbindViewHolder(viewHolder: ViewHolder) {
+            val cardView = viewHolder.view as ImageCardView
+            cardView.badgeImage = null
+            cardView.mainImage = null
+        }
+    }
+
+    /**
+     * Inner class to render Continue Watching cards with progress info
+     */
+    private inner class WatchHistoryCardPresenter : Presenter() {
+        override fun onCreateViewHolder(parent: ViewGroup): ViewHolder {
+            val cardView = ImageCardView(parent.context)
+            cardView.isFocusable = true
+            cardView.isFocusableInTouchMode = true
+            return ViewHolder(cardView)
+        }
+
+        override fun onBindViewHolder(viewHolder: ViewHolder, item: Any) {
+            val cardView = viewHolder.view as ImageCardView
+            val entry = item as com.example.imagis.db.WatchHistoryEntity
+            
+            cardView.titleText = entry.title
+            
+            // Build subtitle: episode label + progress
+            val parts = mutableListOf<String>()
+            if (!entry.episodeLabel.isNullOrEmpty()) parts.add(entry.episodeLabel)
+            if (entry.durationMs > 0) {
+                val posMin = (entry.positionMs / 1000 / 60).toInt()
+                val posSec = ((entry.positionMs / 1000) % 60).toInt()
+                val durMin = (entry.durationMs / 1000 / 60).toInt()
+                val durSec = ((entry.durationMs / 1000) % 60).toInt()
+                parts.add(String.format("%d:%02d / %d:%02d", posMin, posSec, durMin, durSec))
+            }
+            if (entry.status == "WATCHED") parts.add("✅")
+            cardView.contentText = parts.joinToString(" · ")
+            
+            cardView.setMainImageDimensions(200, 300) // Poster aspect ratio
+            cardView.setInfoAreaBackgroundColor(Color.parseColor("#1A1A1A"))
+            
+            com.bumptech.glide.Glide.with(viewHolder.view.context)
+                .load(entry.posterUrl)
                 .centerCrop()
                 .placeholder(R.drawable.app_icon_placeholder)
                 .error(R.drawable.app_icon_placeholder)

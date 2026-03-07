@@ -11,6 +11,7 @@ import com.example.imagis.utils.SyncEngine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.example.imagis.R
 
 class SettingsFragment : GuidedStepSupportFragment() {
 
@@ -58,7 +59,7 @@ class SettingsFragment : GuidedStepSupportFragment() {
                 val sharedPref = requireActivity().getSharedPreferences("iMagisPrefs", Context.MODE_PRIVATE)
                 sharedPref.edit().putString("CUSTOM_M3U_URL", typedUrl).apply()
 
-                Toast.makeText(requireContext(), "URL Saved! Syncing...", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), R.string.msg_url_saved, Toast.LENGTH_SHORT).show()
 
                 lifecycleScope.launch(Dispatchers.IO) {
                     // Update SyncEngine to handle custom URLs if needed, or just trigger sync
@@ -66,15 +67,15 @@ class SettingsFragment : GuidedStepSupportFragment() {
                     
                     withContext(Dispatchers.Main) {
                         if (success) {
-                            Toast.makeText(requireContext(), "Library Updated Successfully!", Toast.LENGTH_LONG).show()
+                            Toast.makeText(requireContext(), R.string.msg_library_updated, Toast.LENGTH_LONG).show()
                             requireActivity().finish()
                         } else {
-                            Toast.makeText(requireContext(), "Failed to download from that URL.", Toast.LENGTH_LONG).show()
+                            Toast.makeText(requireContext(), R.string.msg_failed_download_url, Toast.LENGTH_LONG).show()
                         }
                     }
                 }
             } else {
-                Toast.makeText(requireContext(), "Please enter a valid URL starting with http", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), R.string.msg_invalid_url, Toast.LENGTH_SHORT).show()
             }
         }
     }

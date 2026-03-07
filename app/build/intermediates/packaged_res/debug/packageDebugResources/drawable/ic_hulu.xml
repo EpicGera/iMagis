@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Hulu style green circle icon -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="120dp"
+    android:viewportWidth="120"
+    android:viewportHeight="120">
+    <!-- Green circle background -->
+    <path
+        android:fillColor="#1CE783"
+        android:pathData="M60,10 C87.6,10 110,32.4 110,60 C110,87.6 87.6,110 60,110 C32.4,110 10,87.6 10,60 C10,32.4 32.4,10 60,10Z" />
+    <!-- Letter H -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M38,35 L38,85 L48,85 L48,65 L62,65 L62,85 L72,85 L72,35 L62,35 L62,55 L48,55 L48,35 Z" />
+</vector>

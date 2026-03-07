@@ -21,7 +21,7 @@
             android:id="@+id/buffering_title"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="⏳ Connecting to P2P Swarm..."
+            android:text="@string/connecting_p2p"
             android:textColor="#FFFFFF"
             android:textSize="20sp"
             android:textStyle="bold"

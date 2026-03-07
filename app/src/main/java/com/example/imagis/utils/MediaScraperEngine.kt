@@ -329,17 +329,85 @@ object MediaScraperEngine {
      * @param onProgress Optional callback for UI progress updates
      */
     suspend fun findMagnetForEpisode(
-        seriesName: String, 
+        tvShowId: Int, 
+        tvShowName: String,
         season: Int, 
         episode: Int, 
         onProgress: ((String) -> Unit)? = null
     ): String? = withContext(Dispatchers.IO) {
-        val cleanName = seriesName.replace(Regex("[^a-zA-Z0-9 ]"), "").trim()
+        val cleanName = tvShowName.replace(Regex("[^a-zA-Z0-9 ]"), "").trim()
         val episodeTag = String.format("S%02dE%02d", season, episode)
         val searchQuery = "$cleanName $episodeTag"
         val encodedQuery = URLEncoder.encode(searchQuery, "UTF-8")
         
-        Log.d(TAG, "Searching torrent for episode: $searchQuery")
+        // 1. Get IMDB ID from TMDB
+        withContext(Dispatchers.Main) { onProgress?.invoke("🔍 Resolving IMDB ID...") }
+        val imdbId = try {
+            val response = com.example.imagis.api.TmdbApiClient.service.getTvExternalIds(tvShowId, com.example.imagis.api.TmdbApiClient.API_KEY)
+            response.imdb_id
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to get IMDB ID for $tvShowId: ${e.message}")
+            null
+        }
+
+        if (imdbId != null) {
+            withContext(Dispatchers.Main) { onProgress?.invoke("🔍 Searching Torrentio for $episodeTag...") }
+            try {
+                // Torrentio standard series query format: stream/series/{imdb_id}:{season}:{episode}.json
+                val torrentioUrl = "https://torrentio.strem.fun/stream/series/$imdbId:$season:$episode.json"
+                Log.d(TAG, "Requesting Torrentio: $torrentioUrl")
+                
+                val connection = URL(torrentioUrl).openConnection() as HttpURLConnection
+                connection.connectTimeout = 5000
+                connection.readTimeout = 5000
+                connection.setRequestProperty("User-Agent", "Mozilla/5.0")
+                
+                if (connection.responseCode == HttpURLConnection.HTTP_OK) {
+                    val json = connection.inputStream.bufferedReader().use { it.readText() }
+                    val root = JSONObject(json)
+                    if (root.has("streams")) {
+                        val streams = root.getJSONArray("streams")
+                        if (streams.length() > 0) {
+                            // Find best 1080p stream as a default, or just pick the first
+                            var targetMagnet = ""
+                            var targetTitle = ""
+                            
+                            for (i in 0 until streams.length()) {
+                                val s = streams.getJSONObject(i)
+                                val t = s.optString("title", "").uppercase()
+                                if (t.contains("1080P")) {
+                                    val match = Regex("magnet:.*").find(t) ?: Regex("magnet:.*").find(s.optString("url", ""))
+                                    if(s.has("infoHash")) {
+                                       val name = URLEncoder.encode(s.optString("title").lines().firstOrNull() ?: episodeTag, "UTF-8")
+                                       targetMagnet = buildMagnetLink(s.getString("infoHash"), name)
+                                       targetTitle = "1080p"
+                                       break
+                                    }
+                                }
+                            }
+                            
+                            // Fallback to first if no 1080p is explicit
+                            if (targetMagnet.isEmpty()) {
+                                val bestResult = streams.getJSONObject(0)
+                                if(bestResult.has("infoHash")) {
+                                     val name = URLEncoder.encode(episodeTag, "UTF-8")
+                                     targetMagnet = buildMagnetLink(bestResult.getString("infoHash"), name)
+                                     targetTitle = "Default Quality"
+                                }
+                            }
+                            
+                            if(targetMagnet.isNotEmpty()){
+                                Log.d(TAG, "Torrentio Episode Match! $targetTitle")
+                                withContext(Dispatchers.Main) { onProgress?.invoke("✅ Found on Torrentio!") }
+                                return@withContext targetMagnet
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Torrentio Episode Search Failed: ${e.message}")
+            }
+        }
         
         // Strategy 1: EZTV (specialized for TV) — dynamic mirror
         withContext(Dispatchers.Main) { onProgress?.invoke("🔍 Searching EZTV for $episodeTag...") }
@@ -1212,15 +1280,17 @@ object MediaScraperEngine {
         return fallback
     }
 
-    private fun formatSize(bytes: Long): String {
+    @androidx.annotation.VisibleForTesting
+    internal fun formatSize(bytes: Long): String {
         if (bytes <= 0) return "?"
         val gb = bytes / (1024.0 * 1024.0 * 1024.0)
         val mb = bytes / (1024.0 * 1024.0)
-        return if (gb >= 1.0) String.format("%.1f GB", gb)
-               else String.format("%.0f MB", mb)
+        return if (gb >= 1.0) String.format(java.util.Locale.US, "%.1f GB", gb)
+               else String.format(java.util.Locale.US, "%.0f MB", mb)
     }
 
-    private fun buildMagnetLink(infoHash: String, encodedName: String): String {
+    @androidx.annotation.VisibleForTesting
+    internal fun buildMagnetLink(infoHash: String, encodedName: String): String {
         // High-performance public trackers to kickstart the P2P connection instantly
         val trackers = listOf(
             "udp://tracker.opentrackr.org:1337/announce",

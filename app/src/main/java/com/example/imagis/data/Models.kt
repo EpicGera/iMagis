@@ -1,6 +1,16 @@
 package com.example.imagis.data
 
 /**
+ * Data class representing a single Anime Series.
+ */
+data class AnimeSeries(
+    val title: String,
+    val type: String, // "TV", "OVA", "Movie", etc.
+    val imageUrl: String,
+    val seriesUrl: String
+)
+
+/**
  * Data class representing a single Anime Episode.
  */
 data class AnimeEpisode(
@@ -25,6 +35,7 @@ data class IptvChannel(
     val name: String,
     val logoUrl: String?,
     val streamUrl: String,
+    val fallbackUrls: List<String> = emptyList(),
     val group: String?,
     val isSeries: Boolean = false,
     val season: Int? = null,

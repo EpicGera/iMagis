@@ -1,3 +1,6 @@
+// FILE_PATH: app/src/main/java/com/example/imagis/ui/VideoPlayerActivity.kt
+// ACTION: OVERWRITE
+// ---------------------------------------------------------
 package com.example.imagis.ui
 
 import android.net.Uri
@@ -16,6 +19,11 @@ import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.ui.PlayerView
 import androidx.media3.ui.TrackSelectionDialogBuilder
 import com.example.imagis.R
+import com.example.imagis.db.AppDatabase
+import com.example.imagis.db.WatchHistoryEntity
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 @androidx.annotation.OptIn(UnstableApi::class)
 class VideoPlayerActivity : AppCompatActivity() {
@@ -23,6 +31,14 @@ class VideoPlayerActivity : AppCompatActivity() {
     private var player: ExoPlayer? = null
     private lateinit var playerView: PlayerView
     private var currentUrl: String? = null
+
+    // ── Watch History metadata (passed via intent extras) ──
+    private var contentId: String? = null
+    private var contentTitle: String? = null
+    private var episodeLabel: String? = null
+    private var posterUrl: String? = null
+    private var contentType: String? = null
+    private var resumePositionMs: Long = 0L
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -37,12 +53,21 @@ class VideoPlayerActivity : AppCompatActivity() {
         val videoUrl = intent.getStringExtra("VIDEO_URL")
         
         if (videoUrl.isNullOrEmpty()) {
-            Toast.makeText(this, "Error: No video source provided.", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, R.string.error_no_video_source, Toast.LENGTH_LONG).show()
             finish()
             return
         }
 
         currentUrl = videoUrl
+
+        // Read watch history metadata
+        contentId = intent.getStringExtra("CONTENT_ID") ?: videoUrl
+        contentTitle = intent.getStringExtra("TITLE") ?: "Unknown"
+        episodeLabel = intent.getStringExtra("EPISODE_LABEL")
+        posterUrl = intent.getStringExtra("POSTER_URL")
+        contentType = intent.getStringExtra("CONTENT_TYPE") ?: "MOVIE"
+        resumePositionMs = intent.getLongExtra("RESUME_POSITION_MS", 0L)
+
         initializePlayer(videoUrl)
     }
 
@@ -89,9 +114,38 @@ class VideoPlayerActivity : AppCompatActivity() {
             // Automatically start playing once enough data is buffered
             exoPlayer.playWhenReady = true
             exoPlayer.prepare()
+
+            // Resume from saved position if available
+            if (resumePositionMs > 0L) {
+                exoPlayer.seekTo(resumePositionMs)
+            }
             
             // Listener for errors: offer external player on codec errors
             exoPlayer.addListener(object : Player.Listener {
+                
+                override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
+                    super.onTracksChanged(tracks)
+                    var hasAudioTrack = false
+                    var isAudioSupported = false
+                    
+                    for (group in tracks.groups) {
+                        if (group.type == androidx.media3.common.C.TRACK_TYPE_AUDIO) {
+                            hasAudioTrack = true
+                            if (group.isSupported) {
+                                isAudioSupported = true
+                            }
+                        }
+                    }
+                    
+                    // If the media has audio but the device hardware cannot decode it (e.g. Dolby EAC3 on Emulator)
+                    if (hasAudioTrack && !isAudioSupported) {
+                        showExternalPlayerDialog(
+                            "🔇 Audio Codec Unsupported",
+                            "This video uses an audio format (like Dolby AC3/EAC3) that this app cannot natively decode due to licensing limits on this device.\n\nPlease open this video in an external player like VLC or MX Player to hear the audio."
+                        )
+                    }
+                }
+
                 override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
                     super.onPlayerError(error)
                     
@@ -112,7 +166,7 @@ class VideoPlayerActivity : AppCompatActivity() {
                     } else {
                         Toast.makeText(
                             this@VideoPlayerActivity,
-                            "Stream failed: ${error.message}",
+                            getString(R.string.msg_player_error, error.message),
                             Toast.LENGTH_LONG
                         ).show()
                     }
@@ -177,7 +231,7 @@ class VideoPlayerActivity : AppCompatActivity() {
             // Check if any app can handle this
             if (intent.resolveActivity(packageManager) != null) {
                 startActivity(intent)
-                Toast.makeText(this, "🎬 Opening in external player...", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, R.string.msg_opening_external_player, Toast.LENGTH_SHORT).show()
             } else {
                 Toast.makeText(
                     this,
@@ -186,12 +240,51 @@ class VideoPlayerActivity : AppCompatActivity() {
                 ).show()
             }
         } catch (e: Exception) {
-            Toast.makeText(this, "Error launching player: ${e.message}", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.msg_error_launching_player, e.message), Toast.LENGTH_LONG).show()
+        }
+    }
+
+    // ── WATCH HISTORY: Save position on pause/exit ──────────
+
+    private fun saveWatchHistory() {
+        val exo = player ?: return
+        val id = contentId ?: return
+        val title = contentTitle ?: return
+
+        val positionMs = exo.currentPosition
+        val durationMs = exo.duration.coerceAtLeast(1L)
+
+        // Determine status: ≥90% played → WATCHED, else ONGOING
+        val status = if (durationMs > 0 && positionMs >= durationMs * 0.9) "WATCHED" else "ONGOING"
+
+        val entry = WatchHistoryEntity(
+            id = id,
+            title = title,
+            episodeLabel = episodeLabel,
+            status = status,
+            positionMs = positionMs,
+            durationMs = durationMs,
+            posterUrl = posterUrl,
+            videoUrl = currentUrl,
+            type = contentType ?: "MOVIE",
+            timestamp = System.currentTimeMillis()
+        )
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val dao = AppDatabase.getDatabase(this@VideoPlayerActivity).watchHistoryDao()
+                dao.upsert(entry)
+                dao.trimToMax()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 
     override fun onStop() {
         super.onStop()
+        // Save watch history BEFORE pausing
+        saveWatchHistory()
         // Pause the video if the user hits the "Home" button on the FireStick
         player?.pause()
     }

@@ -7,6 +7,24 @@ import retrofit2.http.Path
 import retrofit2.http.Query
 import java.io.Serializable
 
+// --- Streaming Platform Definitions ---
+enum class StreamingPlatform(
+    val providerId: Int,
+    val displayName: String,
+    val emoji: String
+) {
+    NETFLIX(8, "Netflix", "\uD83D\uDD34"),
+    AMAZON_PRIME(9, "Amazon Prime", "\uD83D\uDD35"),
+    HULU(15, "Hulu", "\uD83D\udfe2"),
+    APPLE_TV_PLUS(350, "Apple TV+", "\u26aa"),
+    DISNEY_PLUS(337, "Disney+", "\uD83D\uDFE3"),
+    MAX(1899, "Max", "\uD83D\uDFE1"),
+    PARAMOUNT_PLUS(531, "Paramount+", "\uD83D\uDD35"),
+    PEACOCK(386, "Peacock", "\uD83D\uDFE0"),
+    CRUNCHYROLL(283, "Crunchyroll", "\uD83D\uDFE0"),
+    STARZ(43, "Starz", "\u26AB");
+}
+
 // --- Data Models ---
 data class TmdbResponse(
     val page: Int,
@@ -22,14 +40,26 @@ data class Movie(
     val overview: String,
     val poster_path: String?,
     val backdrop_path: String?,
-    val genre_ids: List<Int>?
+    val genre_ids: List<Int>?,
+    val release_date: String? = null,
+    val first_air_date: String? = null,
+    val vote_average: Double? = null,
 ) : Serializable {
     // TMDB only returns the image path, we need to append the base URL
     val fullPosterUrl: String
         get() = if (poster_path != null) "https://image.tmdb.org/t/p/w500$poster_path" else ""
-        
+
+    val fullBackdropUrl: String
+        get() = if (backdrop_path != null) "https://image.tmdb.org/t/p/w1280$backdrop_path" else fullPosterUrl
+
     val displayTitle: String
         get() = title ?: name ?: "Unknown"
+
+    val displayYear: String
+        get() = (release_date ?: first_air_date)?.take(4) ?: ""
+
+    val displayRating: String
+        get() = vote_average?.let { String.format("%.1f", it) } ?: ""
 }
 
 // --- API Interface ---
@@ -39,6 +69,52 @@ interface TmdbService {
         @Query("api_key") apiKey: String
     ): TmdbResponse
 
+    @GET("trending/movie/week")
+    suspend fun getTrendingMovies(
+        @Query("api_key") apiKey: String
+    ): TmdbResponse
+
+    @GET("trending/tv/week")
+    suspend fun getTrendingTv(
+        @Query("api_key") apiKey: String
+    ): TmdbResponse
+
+    @GET("discover/movie")
+    suspend fun discoverMovies(
+        @Query("api_key") apiKey: String,
+        @Query("with_genres") genres: String? = null,
+        @Query("sort_by") sortBy: String = "popularity.desc",
+        @Query("with_watch_providers") watchProviders: String? = null,
+        @Query("watch_region") watchRegion: String? = null
+    ): TmdbResponse
+
+    @GET("discover/tv")
+    suspend fun discoverTv(
+        @Query("api_key") apiKey: String,
+        @Query("with_genres") genres: String? = null,
+        @Query("sort_by") sortBy: String = "popularity.desc",
+        @Query("with_watch_providers") watchProviders: String? = null,
+        @Query("watch_region") watchRegion: String? = null
+    ): TmdbResponse
+
+    @GET("search/tv")
+    suspend fun searchTvShows(
+        @Query("api_key") apiKey: String,
+        @Query("query") query: String
+    ): TmdbResponse
+
+    @GET("search/movie")
+    suspend fun searchMovies(
+        @Query("api_key") apiKey: String,
+        @Query("query") query: String
+    ): TmdbResponse
+
+    @GET("search/multi")
+    suspend fun searchMulti(
+        @Query("api_key") apiKey: String,
+        @Query("query") query: String
+    ): TmdbResponse
+
     @GET("movie/popular")
     suspend fun getPopularMovies(
         @Query("api_key") apiKey: String
@@ -46,6 +122,16 @@ interface TmdbService {
     
     @GET("tv/popular")
     suspend fun getPopularSeries(
+        @Query("api_key") apiKey: String
+    ): TmdbResponse
+
+    @GET("tv/top_rated")
+    suspend fun getTopRatedSeries(
+        @Query("api_key") apiKey: String
+    ): TmdbResponse
+
+    @GET("tv/airing_today")
+    suspend fun getAiringTodaySeries(
         @Query("api_key") apiKey: String
     ): TmdbResponse
 
@@ -71,7 +157,19 @@ interface TmdbService {
         @Path("season_number") seasonNumber: Int,
         @Query("api_key") apiKey: String
     ): SeasonDetails
+    
+    @GET("tv/{tv_id}/external_ids")
+    suspend fun getTvExternalIds(
+        @Path("tv_id") tvId: Int,
+        @Query("api_key") apiKey: String
+    ): ExternalIdsResponse
 }
+
+// --- TV Show Data Models ---
+
+data class ExternalIdsResponse(
+    val imdb_id: String?
+)
 
 // --- TV Show Data Models ---
 

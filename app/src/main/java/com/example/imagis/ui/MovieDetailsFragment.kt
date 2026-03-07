@@ -43,14 +43,12 @@ class MovieDetailsFragment : DetailsSupportFragment(), TorrentListener {
     private lateinit var mAdapter: ArrayObjectAdapter
     private lateinit var mPresenterSelector: ClassPresenterSelector
     private lateinit var mDetailsBackground: DetailsSupportFragmentBackgroundController
+    private var currentMovie: com.example.imagis.api.Movie? = null
 
     companion object {
         const val ACTION_PLAY = 1L
         const val ACTION_SEARCH_SOURCES = 2L
         const val ACTION_FAVORITE = 3L
-        
-        // Global P2P Download Manager Instance
-        var torrentStream: TorrentStream? = null
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -61,10 +59,11 @@ class MovieDetailsFragment : DetailsSupportFragment(), TorrentListener {
         val selectedMovie = requireActivity().intent.getSerializableExtra("MOVIE_EXTRA") as? Movie
         
         if (selectedMovie != null) {
+            currentMovie = selectedMovie
             setupUI(selectedMovie)
             setupEventListeners(selectedMovie)
         } else {
-            Toast.makeText(requireContext(), "Error loading movie details", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), R.string.error_loading_movie, Toast.LENGTH_SHORT).show()
             requireActivity().finish()
         }
     }
@@ -86,9 +85,9 @@ class MovieDetailsFragment : DetailsSupportFragment(), TorrentListener {
 
         // Add action buttons
         val actionAdapter = ArrayObjectAdapter()
-        actionAdapter.add(Action(ACTION_PLAY, "Play", "Attempt to stream"))
-        actionAdapter.add(Action(ACTION_SEARCH_SOURCES, "Search Sources", "Scan external lists"))
-        actionAdapter.add(Action(ACTION_FAVORITE, "⭐ Favorite", "Add to My List"))
+        actionAdapter.add(Action(ACTION_PLAY, getString(R.string.action_play), getString(R.string.action_play_desc)))
+        actionAdapter.add(Action(ACTION_SEARCH_SOURCES, getString(R.string.action_search_sources), getString(R.string.action_search_sources_desc)))
+        actionAdapter.add(Action(ACTION_FAVORITE, getString(R.string.action_favorite), getString(R.string.action_favorite_desc)))
         detailsOverview.actionsAdapter = actionAdapter
 
         mAdapter.add(detailsOverview)
@@ -136,7 +135,7 @@ class MovieDetailsFragment : DetailsSupportFragment(), TorrentListener {
                 when (item.id) {
                     ACTION_PLAY -> {
                         Log.d("iMagis_Details", "ACTION_PLAY triggered for: ${movie.displayTitle}")
-                        Toast.makeText(requireContext(), "🔍 Searching P2P sources for: ${movie.displayTitle}...", Toast.LENGTH_LONG).show()
+                        Toast.makeText(requireContext(), getString(R.string.msg_searching_sources_toast, movie.displayTitle), Toast.LENGTH_LONG).show()
                         
                         lifecycleScope.launch(Dispatchers.IO) {
                             try {
@@ -164,21 +163,25 @@ class MovieDetailsFragment : DetailsSupportFragment(), TorrentListener {
                                     if (magnetUrl != null) {
                                         startTorrentStream(magnetUrl, movie.displayTitle)
                                     } else {
-                                        Toast.makeText(requireContext(), "No torrent found. Trying local VOD database...", Toast.LENGTH_LONG).show()
+                                        Toast.makeText(requireContext(), R.string.msg_no_torrent_fallback, Toast.LENGTH_LONG).show()
                                         val dbStreamUrl = MediaScraperEngine.findStreamForTitle(requireContext(), movie.displayTitle)
                                         if (dbStreamUrl != null) {
                                             val intent = android.content.Intent(requireContext(), VideoPlayerActivity::class.java)
                                             intent.putExtra("VIDEO_URL", dbStreamUrl)
+                                            intent.putExtra("TITLE", movie.displayTitle)
+                                            intent.putExtra("CONTENT_ID", movie.id.toString())
+                                            intent.putExtra("CONTENT_TYPE", "MOVIE")
+                                            intent.putExtra("POSTER_URL", movie.fullPosterUrl)
                                             startActivity(intent)
                                         } else {
-                                            Toast.makeText(requireContext(), "No sources available for this title.", Toast.LENGTH_LONG).show()
+                                            Toast.makeText(requireContext(), R.string.msg_no_sources_available, Toast.LENGTH_LONG).show()
                                         }
                                     }
                                 }
                             } catch (e: Exception) {
                                 Log.e("iMagis_Details", "ACTION_PLAY crashed: ${e.message}", e)
                                 withContext(Dispatchers.Main) {
-                                    Toast.makeText(requireContext(), "Error searching: ${e.message}", Toast.LENGTH_LONG).show()
+                                    Toast.makeText(requireContext(), getString(R.string.msg_p2p_error_toast, e.message ?: ""), Toast.LENGTH_LONG).show()
                                 }
                             }
                         }
@@ -187,7 +190,7 @@ class MovieDetailsFragment : DetailsSupportFragment(), TorrentListener {
 
                     ACTION_SEARCH_SOURCES -> {
                         Log.d("iMagis_Details", "ACTION_SEARCH_SOURCES triggered for: ${movie.displayTitle}")
-                        Toast.makeText(requireContext(), "🔍 Scanning all sources for: ${movie.displayTitle}...", Toast.LENGTH_LONG).show()
+                        Toast.makeText(requireContext(), getString(R.string.msg_scanning_all_sources, movie.displayTitle), Toast.LENGTH_LONG).show()
 
                         lifecycleScope.launch(Dispatchers.IO) {
                             try {
@@ -212,17 +215,21 @@ class MovieDetailsFragment : DetailsSupportFragment(), TorrentListener {
                                         showTorrentSelectionDialog(torrentResults, ddlResults, title)
                                     } else {
                                         // Fallback: try local Room DB
-                                        Toast.makeText(requireContext(), "🔍 No results found. Checking local VOD database...", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(requireContext(), R.string.msg_no_results_checking_local, Toast.LENGTH_SHORT).show()
                                         lifecycleScope.launch(Dispatchers.IO) {
                                             val streamUrl = MediaScraperEngine.findStreamForTitle(requireContext(), title)
                                             withContext(Dispatchers.Main) {
                                                 if (streamUrl != null) {
-                                                    Toast.makeText(requireContext(), "✅ Stream found in local DB!", Toast.LENGTH_SHORT).show()
+                                                    Toast.makeText(requireContext(), R.string.msg_stream_found_local, Toast.LENGTH_SHORT).show()
                                                     val intent = android.content.Intent(requireContext(), VideoPlayerActivity::class.java)
                                                     intent.putExtra("VIDEO_URL", streamUrl)
+                                                    intent.putExtra("TITLE", movie.displayTitle)
+                                                    intent.putExtra("CONTENT_ID", movie.id.toString())
+                                                    intent.putExtra("CONTENT_TYPE", "MOVIE")
+                                                    intent.putExtra("POSTER_URL", movie.fullPosterUrl)
                                                     startActivity(intent)
                                                 } else {
-                                                    Toast.makeText(requireContext(), "❌ No sources found for this title.", Toast.LENGTH_LONG).show()
+                                                    Toast.makeText(requireContext(), R.string.msg_no_sources_available, Toast.LENGTH_LONG).show()
                                                 }
                                             }
                                         }
@@ -231,7 +238,7 @@ class MovieDetailsFragment : DetailsSupportFragment(), TorrentListener {
                             } catch (e: Exception) {
                                 Log.e("iMagis_Details", "ACTION_SEARCH_SOURCES crashed: ${e.message}", e)
                                 withContext(Dispatchers.Main) {
-                                    Toast.makeText(requireContext(), "Error searching: ${e.message}", Toast.LENGTH_LONG).show()
+                                    Toast.makeText(requireContext(), getString(R.string.msg_p2p_error_toast, e.message ?: ""), Toast.LENGTH_LONG).show()
                                 }
                             }
                         }
@@ -245,7 +252,7 @@ class MovieDetailsFragment : DetailsSupportFragment(), TorrentListener {
                             if (existing != null) {
                                 db.favoritesDao().deleteFavoriteById(movie.id.toString())
                                 withContext(Dispatchers.Main) {
-                                    Toast.makeText(requireContext(), "Removed from Favorites", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(requireContext(), R.string.msg_removed_favorite, Toast.LENGTH_SHORT).show()
                                 }
                             } else {
                                 val fav = com.example.imagis.db.FavoritesEntity(
@@ -256,7 +263,7 @@ class MovieDetailsFragment : DetailsSupportFragment(), TorrentListener {
                                 )
                                 db.favoritesDao().insertFavorite(fav)
                                 withContext(Dispatchers.Main) {
-                                    Toast.makeText(requireContext(), "⭐ Added to Favorites!", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(requireContext(), R.string.msg_added_favorite, Toast.LENGTH_SHORT).show()
                                 }
                             }
                         }
@@ -279,22 +286,30 @@ class MovieDetailsFragment : DetailsSupportFragment(), TorrentListener {
     }
 
     private fun startTorrentStream(magnetUrl: String, title: String) {
-        if (torrentStream?.isStreaming == true) {
-            torrentStream?.stopStream()
-        }
-
-        val torrentOptions = TorrentOptions.Builder()
-            .saveLocation(requireContext().cacheDir)
-            .removeFilesAfterStop(true) // CLEANS FIRETV MEMORY
-            .autoDownload(true)
-            .build()
-
-        torrentStream = TorrentStream.init(torrentOptions)
-        torrentStream?.addListener(this)
+        com.example.imagis.data.TorrentRepository.initialize(requireContext())
         
         // Show the buffering overlay
         showBufferingOverlay(title)
-        torrentStream?.startStream(magnetUrl)
+        
+        // We will collect states instead of implementing TorrentListener directly
+        // but for now let's just use the repository to start it
+        com.example.imagis.data.TorrentRepository.startStream(requireContext(), magnetUrl, title)
+        
+        // Observe the flow
+        viewLifecycleOwner.lifecycleScope.launch {
+            com.example.imagis.data.TorrentRepository.downloadState.collect { state ->
+                if (state != null) {
+                    if (state.error != null) {
+                        onStreamError(null, Exception(state.error))
+                    } else if (state.buffering) {
+                        onStreamProgress(null, null) 
+                    } else if (state.videoFile != null) {
+                        // The file is ready or we are downloading
+                        onStreamReady(com.example.imagis.data.TorrentRepository.currentTorrent())
+                    }
+                }
+            }
+        }
     }
 
     // --- BUFFERING OVERLAY MANAGEMENT ---
@@ -322,7 +337,7 @@ class MovieDetailsFragment : DetailsSupportFragment(), TorrentListener {
         bufferingTitle?.text = title
         
         // Update the header
-        requireActivity().findViewById<TextView>(R.id.buffering_title)?.text = "⏳ Connecting to P2P Swarm..."
+        requireActivity().findViewById<TextView>(R.id.buffering_title)?.text = getString(R.string.connecting_p2p)
     }
 
     private fun hideBufferingOverlay() {
@@ -336,7 +351,7 @@ class MovieDetailsFragment : DetailsSupportFragment(), TorrentListener {
     override fun onStreamPrepared(torrent: Torrent?) {
         Log.d("P2P_Stream", "Stream Prepared!")
         requireActivity().runOnUiThread {
-            requireActivity().findViewById<TextView>(R.id.buffering_title)?.text = "⏬ Downloading..."
+            requireActivity().findViewById<TextView>(R.id.buffering_title)?.text = getString(R.string.status_downloading)
         }
     }
 
@@ -347,7 +362,7 @@ class MovieDetailsFragment : DetailsSupportFragment(), TorrentListener {
         isStreamReady = false
         
         requireActivity().runOnUiThread {
-            requireActivity().findViewById<TextView>(R.id.buffering_title)?.text = "⏬ Buffering stream..."
+            requireActivity().findViewById<TextView>(R.id.buffering_title)?.text = getString(R.string.status_buffering_stream)
         }
     }
 
@@ -355,7 +370,7 @@ class MovieDetailsFragment : DetailsSupportFragment(), TorrentListener {
         Log.e("P2P_Stream", "Stream Error: ${e?.message}")
         requireActivity().runOnUiThread {
             hideBufferingOverlay()
-            Toast.makeText(requireContext(), "❌ P2P Error: ${e?.message}", Toast.LENGTH_LONG).show()
+            Toast.makeText(requireContext(), getString(R.string.msg_p2p_error_toast, e?.message ?: ""), Toast.LENGTH_LONG).show()
         }
     }
 
@@ -376,11 +391,15 @@ class MovieDetailsFragment : DetailsSupportFragment(), TorrentListener {
                 hideBufferingOverlay()
                 val intent = android.content.Intent(requireContext(), VideoPlayerActivity::class.java)
                 intent.putExtra("VIDEO_URL", torrent.videoFile?.absolutePath)
+                intent.putExtra("TITLE", currentMovie?.displayTitle ?: "")
+                intent.putExtra("CONTENT_ID", currentMovie?.id?.toString() ?: "")
+                intent.putExtra("CONTENT_TYPE", "MOVIE")
+                intent.putExtra("POSTER_URL", currentMovie?.fullPosterUrl ?: "")
                 startActivity(intent)
             }
         } else {
             requireActivity().runOnUiThread {
-                requireActivity().findViewById<TextView>(R.id.buffering_title)?.text = "⏳ Pre-buffering for smooth playback..."
+                requireActivity().findViewById<TextView>(R.id.buffering_title)?.text = getString(R.string.status_pre_buffering)
             }
         }
     }
@@ -396,7 +415,7 @@ class MovieDetailsFragment : DetailsSupportFragment(), TorrentListener {
         requireActivity().runOnUiThread {
             bufferingProgress?.progress = progress
             bufferingPercent?.text = "$progress%"
-            bufferingPeers?.text = "🌐 $seeds peers"
+            bufferingPeers?.text = getString(R.string.peers_count, seeds)
             bufferingSpeed?.text = "⚡ $downloadSpeed"
             
             // Update color based on progress
@@ -439,11 +458,11 @@ class MovieDetailsFragment : DetailsSupportFragment(), TorrentListener {
         val items = mutableListOf<DialogItem>()
 
         if (torrentResults.isNotEmpty()) {
-            items.add(DialogItem(type = 0, headerText = "🧲 Torrents (${torrentResults.size})"))
+            items.add(DialogItem(type = 0, headerText = getString(R.string.torrents_count_format, torrentResults.size)))
             torrentResults.forEach { items.add(DialogItem(type = 1, torrent = it)) }
         }
         if (ddlResults.isNotEmpty()) {
-            items.add(DialogItem(type = 0, headerText = "📥 Direct Downloads — Pahe (${ddlResults.size})"))
+            items.add(DialogItem(type = 0, headerText = getString(R.string.ddl_count_format, ddlResults.size)))
             ddlResults.forEach { items.add(DialogItem(type = 2, ddl = it)) }
         }
 
@@ -452,7 +471,7 @@ class MovieDetailsFragment : DetailsSupportFragment(), TorrentListener {
         val listView = dialogView.findViewById<ListView>(R.id.torrent_list)
         
         val totalCount = torrentResults.size + ddlResults.size
-        titleView.text = "🎬 $movieTitle ($totalCount sources)"
+        titleView.text = getString(R.string.dialog_sources_title, movieTitle, totalCount)
         
         val adapter = object : BaseAdapter() {
             override fun getCount() = items.size
@@ -491,8 +510,8 @@ class MovieDetailsFragment : DetailsSupportFragment(), TorrentListener {
                         
                         badge.text = result.source
                         title.text = result.title
-                        seeds.text = "🌱 ${result.seeds} seeds"
-                        size.text = "📦 ${result.sizeDisplay}"
+                        seeds.text = getString(R.string.seeds_count, result.seeds)
+                        size.text = getString(R.string.size_format, result.sizeDisplay)
                         
                         // Color-code source badges
                         val badgeBg = GradientDrawable()
@@ -534,8 +553,8 @@ class MovieDetailsFragment : DetailsSupportFragment(), TorrentListener {
                         hostBadge.text = result.host
                         qualityBadge.text = result.quality
                         title.text = result.title
-                        size.text = "📦 ${result.sizeDisplay}"
-                        source.text = "📥 ${result.hostFullName}"
+                        size.text = getString(R.string.size_format, result.sizeDisplay)
+                        source.text = getString(R.string.host_format, result.hostFullName)
                         
                         // Host badge color
                         val hostBg = GradientDrawable()
@@ -592,7 +611,7 @@ class MovieDetailsFragment : DetailsSupportFragment(), TorrentListener {
                     // Torrent: start P2P stream
                     val selected = item.torrent!!
                     Log.d("iMagis_Details", "User selected torrent: [${selected.source}] ${selected.title}")
-                    Toast.makeText(requireContext(), "⏳ Connecting to P2P swarm...", Toast.LENGTH_LONG).show()
+                    Toast.makeText(requireContext(), getString(R.string.connecting_p2p), Toast.LENGTH_LONG).show()
                     startTorrentStream(selected.magnetUrl, selected.title)
                     dialog.dismiss()
                 }
@@ -600,7 +619,7 @@ class MovieDetailsFragment : DetailsSupportFragment(), TorrentListener {
                     // DDL: open in WebView for user to complete download
                     val selected = item.ddl!!
                     Log.d("iMagis_Details", "User selected DDL: [${selected.host}] ${selected.title} (${selected.quality})")
-                    Toast.makeText(requireContext(), "📥 Opening ${selected.hostFullName} download...", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(requireContext(), getString(R.string.msg_opening_download, selected.hostFullName), Toast.LENGTH_SHORT).show()
                     val intent = android.content.Intent(requireContext(), WebViewActivity::class.java)
                     intent.putExtra("VIDEO_URL", selected.downloadUrl)
                     startActivity(intent)
@@ -624,7 +643,7 @@ class MovieDetailsFragment : DetailsSupportFragment(), TorrentListener {
 
     override fun onDestroy() {
         super.onDestroy()
-        torrentStream?.removeListener(this)
-        torrentStream?.stopStream()
+        // We do not stop the global stream here so background downloads continue
+        // The user can stop them from the downloads fragment or notification
     }
 }

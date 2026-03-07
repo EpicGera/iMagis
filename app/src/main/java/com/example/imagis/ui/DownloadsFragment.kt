@@ -45,16 +45,10 @@ class DownloadsFragment : BrowseSupportFragment() {
     private fun updateDownloads() {
         listRowAdapter.clear()
         
-        // Fetch active torrents from the global singleton (assuming MovieDetailsFragment.torrentStream exists globally)
-        // Since it's currently stored in MovieDetailsFragment, we will move it to a global scope or App class later
-        // For now, let's create a Mock to satisfy the UI
-        
-        // TODO: Access actual TorrentStream instance
-        if (com.example.imagis.ui.MovieDetailsFragment.torrentStream?.isStreaming == true) {
-             val torrent = com.example.imagis.ui.MovieDetailsFragment.torrentStream?.currentTorrent
-             if(torrent != null){
-                 listRowAdapter.add(torrent)
-             }
+        // Fetch active torrents from the global singleton 
+        val currentTorrent = com.example.imagis.data.TorrentRepository.currentTorrent()
+        if (currentTorrent != null) {
+            listRowAdapter.add(currentTorrent)
         }
         
         if (listRowAdapter.size() == 0) {

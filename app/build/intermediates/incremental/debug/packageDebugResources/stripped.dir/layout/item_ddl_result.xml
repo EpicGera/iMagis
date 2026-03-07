@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="@drawable/torrent_item_selector"
+    android:descendantFocusability="blocksDescendants">
+
+    <!-- Row 1: Host badge + Quality badge + Title -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <!-- Host badge (PD, MG, GD, etc.) -->
+        <TextView
+            android:id="@+id/ddl_host_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="PD"
+            android:textColor="#1A1A2E"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="4dp"
+            android:layout_marginEnd="8dp" />
+
+        <!-- Quality badge (1080p, 720p, etc.) -->
+        <TextView
+            android:id="@+id/ddl_quality_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="1080p"
+            android:textColor="#1A1A2E"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="3dp"
+            android:layout_marginEnd="12dp" />
+
+        <!-- Title -->
+        <TextView
+            android:id="@+id/ddl_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Movie Title"
+            android:textColor="#E0E0E0"
+            android:textSize="15sp"
+            android:maxLines="2"
+            android:ellipsize="end" />
+    </LinearLayout>
+
+    <!-- Row 2: Size + Source -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="6dp">
+
+        <TextView
+            android:id="@+id/ddl_size"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="📦 1.4 GB"
+            android:textColor="#90CAF9"
+            android:textSize="14sp"
+            android:layout_marginEnd="24dp" />
+
+        <TextView
+            android:id="@+id/ddl_source"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="📥 Pahe"
+            android:textColor="#B0BEC5"
+            android:textSize="13sp" />
+    </LinearLayout>
+
+</LinearLayout>

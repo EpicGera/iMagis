@@ -3,26 +3,34 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="com.android.providers.tv.permission.READ_EPG_DATA" />
+    <uses-permission android:name="com.android.providers.tv.permission.WRITE_EPG_DATA" />
     <uses-feature android:name="android.software.leanback" android:required="true" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
 
     <application
         android:allowBackup="true"
-        android:icon="@drawable/app_icon_placeholder"
+        android:icon="@mipmap/ic_launcher"
         android:label="iMagis"
         android:usesCleartextTraffic="true"
         android:banner="@drawable/app_banner"
         android:theme="@style/Theme.Leanback">
         
         <activity
-            android:name=".ui.MainActivity"
+            android:name=".ui.SplashActivity"
             android:exported="true"
-            android:screenOrientation="landscape">
+            android:screenOrientation="landscape"
+            android:theme="@style/Theme.AppCompat.NoActionBar">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".ui.MainActivity"
+            android:exported="false"
+            android:screenOrientation="landscape" />
         
         <activity android:name=".ui.AnimeActivity" />
         <activity android:name=".ui.IptvActivity" />
@@ -48,6 +56,10 @@
             android:theme="@style/Theme.Leanback.GuidedStep" />
 
         <activity android:name=".ui.DownloadsActivity" />
+        <activity android:name=".ui.TvSeasonsActivity" />
+        <activity android:name=".ui.AnimeDetailsActivity" />
+        <activity android:name=".ui.AnimeSeriesActivity" />
+        <activity android:name=".ui.PlatformBrowseActivity" />
 
         <!-- FileProvider for sharing torrent files with external players (VLC, MX Player) -->
         <provider
@@ -59,6 +71,19 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_provider_paths" />
         </provider>
+
+        <!-- Required to publish channels to the Android TV Home Screen -->
+        <service
+            android:name=".service.ImagisTvInputService"
+            android:permission="android.permission.BIND_TV_INPUT"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.media.tv.TvInputService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.media.tv.input"
+                android:resource="@xml/tv_input_service" />
+        </service>
     </application>
 
 </manifest>

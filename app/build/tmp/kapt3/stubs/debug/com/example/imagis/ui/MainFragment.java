@@ -1,12 +1,13 @@
 package com.example.imagis.ui;
 
-@kotlin.Metadata(mv = {1, 9, 0}, k = 1, xi = 48, d1 = {"\u0000\"\n\u0002\u0018\u0002\n\u0002\u0018\u0002\n\u0002\b\u0002\n\u0002\u0010\u0002\n\u0000\n\u0002\u0018\u0002\n\u0002\b\u0006\n\u0002\u0018\u0002\n\u0002\b\b\u0018\u0000 \u00102\u00020\u0001:\u0006\u000f\u0010\u0011\u0012\u0013\u0014B\u0005\u00a2\u0006\u0002\u0010\u0002J\u0010\u0010\u0003\u001a\u00020\u00042\u0006\u0010\u0005\u001a\u00020\u0006H\u0002J\u0010\u0010\u0007\u001a\u00020\u00042\u0006\u0010\u0005\u001a\u00020\u0006H\u0002J\b\u0010\b\u001a\u00020\u0004H\u0002J\u0010\u0010\t\u001a\u00020\u00042\u0006\u0010\u0005\u001a\u00020\u0006H\u0002J\u0010\u0010\n\u001a\u00020\u00042\u0006\u0010\u0005\u001a\u00020\u0006H\u0002J\u0012\u0010\u000b\u001a\u00020\u00042\b\u0010\f\u001a\u0004\u0018\u00010\rH\u0016J\b\u0010\u000e\u001a\u00020\u0004H\u0002\u00a8\u0006\u0015"}, d2 = {"Lcom/example/imagis/ui/MainFragment;", "Landroidx/leanback/app/BrowseSupportFragment;", "()V", "loadFavorites", "", "adapter", "Landroidx/leanback/widget/ArrayObjectAdapter;", "loadLatestEpisodes", "loadRows", "loadTmdbContent", "loadVodContent", "onActivityCreated", "savedInstanceState", "Landroid/os/Bundle;", "setupEventListeners", "CardPresenter", "Companion", "FavoriteCardPresenter", "HeroPresenter", "MenuCardPresenter", "VodPresenter", "app_debug"})
+@kotlin.Metadata(mv = {1, 9, 0}, k = 1, xi = 48, d1 = {"\u00008\n\u0002\u0018\u0002\n\u0002\u0018\u0002\n\u0002\b\u0002\n\u0002\u0010\u0002\n\u0000\n\u0002\u0018\u0002\n\u0000\n\u0002\u0010\u000e\n\u0000\n\u0002\u0010 \n\u0002\u0018\u0002\n\u0000\n\u0002\u0010\t\n\u0002\b\u000b\n\u0002\u0018\u0002\n\u0002\b\t\u0018\u0000 \u001c2\u00020\u0001:\u0007\u001b\u001c\u001d\u001e\u001f !B\u0005\u00a2\u0006\u0002\u0010\u0002J4\u0010\u0003\u001a\u00020\u00042\u0006\u0010\u0005\u001a\u00020\u00062\u0006\u0010\u0007\u001a\u00020\b2\f\u0010\t\u001a\b\u0012\u0004\u0012\u00020\u000b0\n2\u0006\u0010\f\u001a\u00020\rH\u0082@\u00a2\u0006\u0002\u0010\u000eJ\u0010\u0010\u000f\u001a\u00020\u00042\u0006\u0010\u0010\u001a\u00020\u0006H\u0002J\u0010\u0010\u0011\u001a\u00020\u00042\u0006\u0010\u0010\u001a\u00020\u0006H\u0002J\b\u0010\u0012\u001a\u00020\u0004H\u0002J\u0010\u0010\u0013\u001a\u00020\u00042\u0006\u0010\u0010\u001a\u00020\u0006H\u0002J\u0010\u0010\u0014\u001a\u00020\u00042\u0006\u0010\u0010\u001a\u00020\u0006H\u0002J\u0010\u0010\u0015\u001a\u00020\u00042\u0006\u0010\u0010\u001a\u00020\u0006H\u0002J\u0010\u0010\u0016\u001a\u00020\u00042\u0006\u0010\u0010\u001a\u00020\u0006H\u0002J\u0012\u0010\u0017\u001a\u00020\u00042\b\u0010\u0018\u001a\u0004\u0018\u00010\u0019H\u0016J\b\u0010\u001a\u001a\u00020\u0004H\u0002\u00a8\u0006\""}, d2 = {"Lcom/example/imagis/ui/MainFragment;", "Landroidx/leanback/app/BrowseSupportFragment;", "()V", "addTmdbRow", "", "mainAdapter", "Landroidx/leanback/widget/ArrayObjectAdapter;", "title", "", "movies", "", "Lcom/example/imagis/api/Movie;", "headerId", "", "(Landroidx/leanback/widget/ArrayObjectAdapter;Ljava/lang/String;Ljava/util/List;JLkotlin/coroutines/Continuation;)Ljava/lang/Object;", "loadFavorites", "adapter", "loadLatestEpisodes", "loadRows", "loadTMDBRows", "loadTmdbContent", "loadVodContent", "loadWatchHistory", "onActivityCreated", "savedInstanceState", "Landroid/os/Bundle;", "setupEventListeners", "CardPresenter", "Companion", "FavoriteCardPresenter", "HeroPresenter", "MenuCardPresenter", "VodPresenter", "WatchHistoryCardPresenter", "app_debug"})
 public final class MainFragment extends androidx.leanback.app.BrowseSupportFragment {
     public static final int TYPE_ANIME = 1;
     public static final int TYPE_LIVETV = 2;
     public static final int TYPE_DIRECTORY = 3;
     public static final int TYPE_SETTINGS = 4;
     public static final int TYPE_DOWNLOADS = 5;
+    public static final int TYPE_PLATFORM = 6;
     @org.jetbrains.annotations.NotNull()
     public static final com.example.imagis.ui.MainFragment.Companion Companion = null;
     
@@ -22,6 +23,9 @@ public final class MainFragment extends androidx.leanback.app.BrowseSupportFragm
     private final void loadRows() {
     }
     
+    private final void loadWatchHistory(androidx.leanback.widget.ArrayObjectAdapter adapter) {
+    }
+    
     private final void loadLatestEpisodes(androidx.leanback.widget.ArrayObjectAdapter adapter) {
     }
     
@@ -29,6 +33,13 @@ public final class MainFragment extends androidx.leanback.app.BrowseSupportFragm
     }
     
     private final void loadFavorites(androidx.leanback.widget.ArrayObjectAdapter adapter) {
+    }
+    
+    private final void loadTMDBRows(androidx.leanback.widget.ArrayObjectAdapter adapter) {
+    }
+    
+    private final java.lang.Object addTmdbRow(androidx.leanback.widget.ArrayObjectAdapter mainAdapter, java.lang.String title, java.util.List<com.example.imagis.api.Movie> movies, long headerId, kotlin.coroutines.Continuation<? super kotlin.Unit> $completion) {
+        return null;
     }
     
     private final void loadVodContent(androidx.leanback.widget.ArrayObjectAdapter adapter) {
@@ -66,7 +77,7 @@ public final class MainFragment extends androidx.leanback.app.BrowseSupportFragm
         }
     }
     
-    @kotlin.Metadata(mv = {1, 9, 0}, k = 1, xi = 48, d1 = {"\u0000\u0014\n\u0002\u0018\u0002\n\u0002\u0010\u0000\n\u0002\b\u0002\n\u0002\u0010\b\n\u0002\b\u0005\b\u0086\u0003\u0018\u00002\u00020\u0001B\u0007\b\u0002\u00a2\u0006\u0002\u0010\u0002R\u000e\u0010\u0003\u001a\u00020\u0004X\u0086T\u00a2\u0006\u0002\n\u0000R\u000e\u0010\u0005\u001a\u00020\u0004X\u0086T\u00a2\u0006\u0002\n\u0000R\u000e\u0010\u0006\u001a\u00020\u0004X\u0086T\u00a2\u0006\u0002\n\u0000R\u000e\u0010\u0007\u001a\u00020\u0004X\u0086T\u00a2\u0006\u0002\n\u0000R\u000e\u0010\b\u001a\u00020\u0004X\u0086T\u00a2\u0006\u0002\n\u0000\u00a8\u0006\t"}, d2 = {"Lcom/example/imagis/ui/MainFragment$Companion;", "", "()V", "TYPE_ANIME", "", "TYPE_DIRECTORY", "TYPE_DOWNLOADS", "TYPE_LIVETV", "TYPE_SETTINGS", "app_debug"})
+    @kotlin.Metadata(mv = {1, 9, 0}, k = 1, xi = 48, d1 = {"\u0000\u0014\n\u0002\u0018\u0002\n\u0002\u0010\u0000\n\u0002\b\u0002\n\u0002\u0010\b\n\u0002\b\u0006\b\u0086\u0003\u0018\u00002\u00020\u0001B\u0007\b\u0002\u00a2\u0006\u0002\u0010\u0002R\u000e\u0010\u0003\u001a\u00020\u0004X\u0086T\u00a2\u0006\u0002\n\u0000R\u000e\u0010\u0005\u001a\u00020\u0004X\u0086T\u00a2\u0006\u0002\n\u0000R\u000e\u0010\u0006\u001a\u00020\u0004X\u0086T\u00a2\u0006\u0002\n\u0000R\u000e\u0010\u0007\u001a\u00020\u0004X\u0086T\u00a2\u0006\u0002\n\u0000R\u000e\u0010\b\u001a\u00020\u0004X\u0086T\u00a2\u0006\u0002\n\u0000R\u000e\u0010\t\u001a\u00020\u0004X\u0086T\u00a2\u0006\u0002\n\u0000\u00a8\u0006\n"}, d2 = {"Lcom/example/imagis/ui/MainFragment$Companion;", "", "()V", "TYPE_ANIME", "", "TYPE_DIRECTORY", "TYPE_DOWNLOADS", "TYPE_LIVETV", "TYPE_PLATFORM", "TYPE_SETTINGS", "app_debug"})
     public static final class Companion {
         
         private Companion() {
@@ -165,6 +176,35 @@ public final class MainFragment extends androidx.leanback.app.BrowseSupportFragm
     final class VodPresenter extends androidx.leanback.widget.Presenter {
         
         public VodPresenter() {
+            super();
+        }
+        
+        @java.lang.Override()
+        @org.jetbrains.annotations.NotNull()
+        public androidx.leanback.widget.Presenter.ViewHolder onCreateViewHolder(@org.jetbrains.annotations.NotNull()
+        android.view.ViewGroup parent) {
+            return null;
+        }
+        
+        @java.lang.Override()
+        public void onBindViewHolder(@org.jetbrains.annotations.NotNull()
+        androidx.leanback.widget.Presenter.ViewHolder viewHolder, @org.jetbrains.annotations.NotNull()
+        java.lang.Object item) {
+        }
+        
+        @java.lang.Override()
+        public void onUnbindViewHolder(@org.jetbrains.annotations.NotNull()
+        androidx.leanback.widget.Presenter.ViewHolder viewHolder) {
+        }
+    }
+    
+    /**
+     * Inner class to render Continue Watching cards with progress info
+     */
+    @kotlin.Metadata(mv = {1, 9, 0}, k = 1, xi = 48, d1 = {"\u0000(\n\u0002\u0018\u0002\n\u0002\u0018\u0002\n\u0002\b\u0002\n\u0002\u0010\u0002\n\u0000\n\u0002\u0018\u0002\n\u0000\n\u0002\u0010\u0000\n\u0002\b\u0002\n\u0002\u0018\u0002\n\u0002\b\u0002\b\u0082\u0004\u0018\u00002\u00020\u0001B\u0005\u00a2\u0006\u0002\u0010\u0002J\u0018\u0010\u0003\u001a\u00020\u00042\u0006\u0010\u0005\u001a\u00020\u00062\u0006\u0010\u0007\u001a\u00020\bH\u0016J\u0010\u0010\t\u001a\u00020\u00062\u0006\u0010\n\u001a\u00020\u000bH\u0016J\u0010\u0010\f\u001a\u00020\u00042\u0006\u0010\u0005\u001a\u00020\u0006H\u0016\u00a8\u0006\r"}, d2 = {"Lcom/example/imagis/ui/MainFragment$WatchHistoryCardPresenter;", "Landroidx/leanback/widget/Presenter;", "(Lcom/example/imagis/ui/MainFragment;)V", "onBindViewHolder", "", "viewHolder", "Landroidx/leanback/widget/Presenter$ViewHolder;", "item", "", "onCreateViewHolder", "parent", "Landroid/view/ViewGroup;", "onUnbindViewHolder", "app_debug"})
+    final class WatchHistoryCardPresenter extends androidx.leanback.widget.Presenter {
+        
+        public WatchHistoryCardPresenter() {
             super();
         }
         
