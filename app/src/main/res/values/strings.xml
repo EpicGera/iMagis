@@ -130,4 +130,5 @@
     <string name="title_latest_anime">Latest Anime</string>
     <string name="error_no_episodes_found">No episodes found (Parse Empty)</string>
     <string name="error_generic">Error: %1$s</string>
+    <string name="error_sync_failed">Database Sync Failed. Check Connection.</string>
 </resources>

@@ -266,7 +266,7 @@ class MainActivity : ComponentActivity() {
                 withContext(Dispatchers.Main) {
                     Toast.makeText(
                         this@MainActivity,
-                        "Database Sync Failed. Check Connection.",
+                        R.string.error_sync_failed,
                         Toast.LENGTH_LONG
                     ).show()
                 }

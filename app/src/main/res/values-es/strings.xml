@@ -131,4 +131,5 @@
     <string name="title_latest_anime">Últimos Animes</string>
     <string name="error_no_episodes_found">No se encontraron episodios (Análisis vacío)</string>
     <string name="error_generic">Error: %1$s</string>
+    <string name="error_sync_failed">Error en la sincronización de la base de datos. Verifica tu conexión.</string>
 </resources>
