@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Focused state -->
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <!-- 3dp Cyan Border -->
+            <stroke android:width="3dp" android:color="#00FFFF" />
+            <!-- Brighter Glass Background (20% Cyan) -->
+            <solid android:color="#3300FFFF" />
+            <corners android:radius="12dp" />
+        </shape>
+    </item>
+
+    <!-- Default state -->
+    <item>
+        <shape android:shape="rectangle">
+            <!-- Normal Glass Background (10% White) -->
+            <solid android:color="#1AFFFFFF" />
+            <corners android:radius="12dp" />
+            <!-- Transparent 2dp border to keep the box size mostly consistent -->
+            <stroke android:width="2dp" android:color="#00FFFFFF" />
+        </shape>
+    </item>
+</selector>

@@ -1,0 +1,1310 @@
+package com.epicgera.vtrae.utils
+
+import android.content.Context
+import android.util.Log
+import com.epicgera.vtrae.data.DdlResult
+import com.epicgera.vtrae.data.TorrentResult
+import com.epicgera.vtrae.db.AppDatabase
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import org.json.JSONObject
+import java.io.OutputStreamWriter
+import java.net.HttpURLConnection
+import java.net.URL
+import java.net.URLEncoder
+
+object MediaScraperEngine {
+
+    // Cached EZTV domain resolved dynamically from eztvstatus.org
+    @Volatile
+    private var cachedEztvDomain: String? = null
+    private var eztvDomainExpiry: Long = 0L
+
+    private const val TAG = "ScraperEngine"
+
+    // Use this for Movies — with smart relevance scoring
+    suspend fun findStreamForTitle(context: Context, title: String): String? = withContext(Dispatchers.Default) {
+        val cleanTitle = title.lowercase().trim()
+        val searchWords = cleanTitle.split(Regex("\\s+")).filter { it.length > 2 } // Ignore short words like "a", "of", "the"
+        
+        Log.d(TAG, "Smart DB search for: '$cleanTitle' (${searchWords.size} significant words: $searchWords)")
+        
+        try {
+            val db = AppDatabase.getDatabase(context)
+            
+            // Try exact full-title match first
+            val exactMatch = db.channelDao().findStreamByTitle(cleanTitle)
+            if (exactMatch != null) {
+                Log.d(TAG, "Exact title match found!")
+                return@withContext exactMatch
+            }
+            
+            // Try word-by-word scoring: search using the most significant words
+            // Use longest words first (more unique = better match)
+            val significantWords = searchWords.sortedByDescending { it.length }
+            
+            for (keyword in significantWords.take(3)) {
+                val candidates = db.channelDao().findStreamCandidates(keyword)
+                Log.d(TAG, "Keyword '$keyword' returned ${candidates.size} candidates")
+                
+                if (candidates.isEmpty()) continue
+                
+                // Score each candidate by counting how many search words appear in its name
+                val scored = candidates.map { candidate ->
+                    val matchedWords = searchWords.count { word -> candidate.lowercaseName.contains(word) }
+                    val score = matchedWords.toDouble() / searchWords.size.toDouble()
+                    Triple(candidate, matchedWords, score)
+                }
+                
+                // Sort by score descending, pick best
+                val best = scored.maxByOrNull { it.third }
+                
+                if (best != null) {
+                    Log.d(TAG, "Best match: '${best.first.lowercaseName}' (${best.second}/${searchWords.size} words, score=${String.format("%.0f", best.third * 100)}%)")
+                    
+                    // Require at least 50% word overlap to avoid false matches
+                    if (best.third >= 0.5) {
+                        Log.d(TAG, "✅ Accepted match (>=50% relevance)")
+                        return@withContext best.first.streamUrl
+                    } else {
+                        Log.d(TAG, "❌ Rejected match (too low relevance: ${String.format("%.0f", best.third * 100)}%)")
+                    }
+                }
+            }
+            
+            Log.d(TAG, "No relevant streams found in local DB for '$cleanTitle'")
+        } catch (e: Exception) {
+            Log.e(TAG, "Database search error: ${e.message}")
+        }
+        return@withContext null
+    }
+
+    // Use this for TV Shows
+    suspend fun findEpisodeStream(context: Context, seriesName: String, season: Int, episode: Int): String? = withContext(Dispatchers.Default) {
+        val cleanSeriesName = seriesName.lowercase().trim()
+        Log.d(TAG, "Searching for TV Show: $cleanSeriesName, S:$season E:$episode")
+        
+        try {
+            val db = AppDatabase.getDatabase(context)
+            val streamUrl = db.channelDao().findEpisodeStream(cleanSeriesName, season, episode)
+            
+            if (streamUrl != null) {
+                Log.d(TAG, "Episode found! $streamUrl")
+                return@withContext streamUrl
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Database episode search error: ${e.message}")
+        }
+        return@withContext null
+    }
+
+    // --- MAGNET SCRAPING MAGIC ---
+
+    /**
+     * Original findMagnetForTitle without progress callback (backward compat).
+     */
+    suspend fun findMagnetForTitle(queries: List<String>): String? {
+        return findMagnetForTitle(queries, onProgress = null)
+    }
+
+    /**
+     * Searches public torrent APIs (YTS, EZTV, Apibay, LimeTorrents, Nyaa)
+     * and returns the best Magnet Link found based on seeders.
+     * Takes a list of search queries to try in descending priority.
+     * 
+     * @param onProgress Optional callback fired on Main thread before each source is searched.
+     *                   Passes a human-readable status message like "Searching YTS..."
+     */
+    suspend fun findMagnetForTitle(queries: List<String>, onProgress: ((String) -> Unit)?): String? = withContext(Dispatchers.Default) {
+        
+        for (rawQuery in queries) {
+            val cleanTitle = rawQuery.replace(Regex("[^a-zA-Z0-9 ]"), "").trim()
+            val query = URLEncoder.encode(cleanTitle, "UTF-8")
+            
+            Log.d(TAG, "Initiating Magnet Search for: '$cleanTitle'")
+            
+            // Strategy 1: YTS API (Best for English 1080p/720p Movies)
+            // Try yts.mx first, then fallback to yts.bz
+            withContext(Dispatchers.Main) { onProgress?.invoke("🔍 Searching YTS for: $cleanTitle...") }
+            val ytsDomains = listOf("yts.mx", "yts.bz")
+            var ytsFound = false
+            for (ytsDomain in ytsDomains) {
+                if (ytsFound) break
+                try {
+                    val ytsUrl = "https://$ytsDomain/api/v2/list_movies.json?query_term=$query&sort_by=seeds&limit=3"
+                    Log.d(TAG, "Requesting YTS ($ytsDomain): $ytsUrl")
+                    
+                    val connection = URL(ytsUrl).openConnection() as HttpURLConnection
+                    connection.connectTimeout = 5000
+                    connection.readTimeout = 5000
+                    
+                    if (connection.responseCode == HttpURLConnection.HTTP_OK) {
+                        val json = connection.inputStream.bufferedReader().use { it.readText() }
+                        val root = JSONObject(json)
+                        val data = root.optJSONObject("data")
+                        
+                        if (data != null && data.has("movies")) {
+                            val movies = data.getJSONArray("movies")
+                            if (movies.length() > 0) {
+                                val bestMovie = movies.getJSONObject(0)
+                                val torrents = bestMovie.getJSONArray("torrents")
+                                
+                                if (torrents.length() > 0) {
+                                    val bestTorrent = torrents.getJSONObject(0)
+                                    val hash = bestTorrent.getString("hash")
+                                    val name = URLEncoder.encode(bestMovie.getString("title"), "UTF-8")
+                                    
+                                    val magnet = buildMagnetLink(hash, name)
+                                    Log.d(TAG, "YTS Match Found! Hash: $hash (via $ytsDomain)")
+                                    withContext(Dispatchers.Main) { onProgress?.invoke("✅ Found on YTS!") }
+                                    return@withContext magnet
+                                }
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "YTS Search Failed ($ytsDomain): ${e.message}")
+                }
+            }
+
+            // Strategy 2: EZTV API (Best for TV Shows)
+            // Uses dynamic mirror resolution from eztvstatus.org
+            withContext(Dispatchers.Main) { onProgress?.invoke("🔍 Searching EZTV for: $cleanTitle...") }
+            try {
+                val eztvDomain = resolveEztvDomain()
+                val eztvUrl = "https://$eztvDomain/api/get-torrents?limit=3&query=$query"
+                Log.d(TAG, "Requesting EZTV: $eztvUrl")
+                
+                val connection = URL(eztvUrl).openConnection() as HttpURLConnection
+                connection.connectTimeout = 5000
+                connection.readTimeout = 5000
+                connection.setRequestProperty("User-Agent", "Mozilla/5.0")
+                
+                if (connection.responseCode == HttpURLConnection.HTTP_OK) {
+                    val json = connection.inputStream.bufferedReader().use { it.readText() }
+                    val root = JSONObject(json)
+                    if (root.has("torrents")) {
+                        val torrents = root.getJSONArray("torrents")
+                        if (torrents.length() > 0) {
+                            val bestResult = torrents.getJSONObject(0)
+                            if (bestResult.has("magnet_url")) {
+                                val rawMagnet = bestResult.getString("magnet_url")
+                                val hashMatch = Regex("urn:btih:([a-zA-Z0-9]+)").find(rawMagnet)
+                                val titleRaw = bestResult.optString("title", cleanTitle)
+                                val name = URLEncoder.encode(titleRaw, "UTF-8")
+                                
+                                if (hashMatch != null) {
+                                    val hash = hashMatch.groupValues[1]
+                                    val magnet = buildMagnetLink(hash, name)
+                                    Log.d(TAG, "EZTV Match Found! Hash: $hash")
+                                    withContext(Dispatchers.Main) { onProgress?.invoke("✅ Found on EZTV!") }
+                                    return@withContext magnet
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "EZTV Search Failed: ${e.message}")
+            }
+
+            // Strategy 3: Apibay / ThePirateBay (Best for general content)
+            withContext(Dispatchers.Main) { onProgress?.invoke("🔍 Searching Apibay for: $cleanTitle...") }
+            try {
+                val apiBayUrl = "https://apibay.org/q.php?q=$query"
+                Log.d(TAG, "Requesting Apibay: $apiBayUrl")
+                
+                val connection = URL(apiBayUrl).openConnection() as HttpURLConnection
+                connection.connectTimeout = 5000
+                connection.readTimeout = 5000
+                connection.setRequestProperty("User-Agent", "Mozilla/5.0")
+                
+                if (connection.responseCode == HttpURLConnection.HTTP_OK) {
+                    val json = connection.inputStream.bufferedReader().use { it.readText() }
+                    val results = JSONArray(json)
+                    
+                    if (results.length() > 0) {
+                        val bestResult = results.getJSONObject(0)
+                        val hash = bestResult.getString("info_hash")
+                        val name = URLEncoder.encode(bestResult.getString("name"), "UTF-8")
+                        
+                        if (hash != "0000000000000000000000000000000000000000") {
+                            val magnet = buildMagnetLink(hash, name)
+                            Log.d(TAG, "Apibay Match Found! Hash: $hash")
+                            withContext(Dispatchers.Main) { onProgress?.invoke("✅ Found on Apibay!") }
+                            return@withContext magnet
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Apibay Search Failed: ${e.message}")
+            }
+
+            // Strategy 4: LimeTorrents RSS
+            withContext(Dispatchers.Main) { onProgress?.invoke("🔍 Searching LimeTorrents for: $cleanTitle...") }
+            try {
+                val limeUrl = "https://www.limetorrents.fun/searchrss/$query/"
+                Log.d(TAG, "Requesting LimeTorrents: $limeUrl")
+                
+                val connection = URL(limeUrl).openConnection() as HttpURLConnection
+                connection.connectTimeout = 5000
+                connection.readTimeout = 5000
+                connection.setRequestProperty("User-Agent", "Mozilla/5.0")
+                
+                if (connection.responseCode == HttpURLConnection.HTTP_OK) {
+                    val xml = connection.inputStream.bufferedReader().use { it.readText() }
+                    
+                    // Matches <enclosure url=".../HASH.torrent" />
+                    val hashRegex = Regex("<enclosure url=\".*?/([a-fA-F0-9]{40})\\.torrent")
+                    val hashMatch = hashRegex.find(xml)
+                    
+                    if (hashMatch != null) {
+                        val hash = hashMatch.groupValues[1]
+                        val magnet = buildMagnetLink(hash, query)
+                        Log.d(TAG, "LimeTorrents Match Found! Hash: $hash")
+                        withContext(Dispatchers.Main) { onProgress?.invoke("✅ Found on LimeTorrents!") }
+                        return@withContext magnet
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "LimeTorrents Search Failed: ${e.message}")
+            }
+
+            // Strategy 5: Nyaa.si (Best for Anime)
+            withContext(Dispatchers.Main) { onProgress?.invoke("🔍 Searching Nyaa for: $cleanTitle...") }
+            try {
+                val nyaaUrl = "https://nyaa.si/?page=rss&q=$query&c=0_0&f=0"
+                Log.d(TAG, "Requesting Nyaa: $nyaaUrl")
+                
+                val connection = URL(nyaaUrl).openConnection() as HttpURLConnection
+                connection.connectTimeout = 5000
+                connection.readTimeout = 5000
+                connection.setRequestProperty("User-Agent", "Mozilla/5.0")
+                
+                if (connection.responseCode == HttpURLConnection.HTTP_OK) {
+                    val xml = connection.inputStream.bufferedReader().use { it.readText() }
+                    
+                    val hashRegex = Regex("<nyaa:infoHash>([a-fA-F0-9]{40})</nyaa:infoHash>")
+                    val hashMatch = hashRegex.find(xml)
+                    
+                    if (hashMatch != null) {
+                        val hash = hashMatch.groupValues[1]
+                        val magnet = buildMagnetLink(hash, query)
+                        Log.d(TAG, "Nyaa Match Found! Hash: $hash")
+                        withContext(Dispatchers.Main) { onProgress?.invoke("✅ Found on Nyaa!") }
+                        return@withContext magnet
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Nyaa Search Failed: ${e.message}")
+            }
+
+            // Strategy 6: MSearch (Algolia-based aggregator)
+            withContext(Dispatchers.Main) { onProgress?.invoke("🔍 Searching MSearch for: $cleanTitle...") }
+            try {
+                val magnet = searchMSearch(cleanTitle)
+                if (magnet != null) {
+                    Log.d(TAG, "MSearch Match Found!")
+                    withContext(Dispatchers.Main) { onProgress?.invoke("✅ Found on MSearch!") }
+                    return@withContext magnet
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "MSearch Search Failed: ${e.message}")
+            }
+
+        } // End of query loop
+
+        withContext(Dispatchers.Main) { onProgress?.invoke("❌ No torrents found across all sources.") }
+        return@withContext null
+    }
+
+    /**
+     * Searches for a specific TV episode torrent using SxxExx notation.
+     * Queries EZTV (best for TV) then Apibay as fallback.
+     * 
+     * @param seriesName Name of the TV series
+     * @param season Season number
+     * @param episode Episode number  
+     * @param onProgress Optional callback for UI progress updates
+     */
+    suspend fun findMagnetForEpisode(
+        tvShowId: Int, 
+        tvShowName: String,
+        season: Int, 
+        episode: Int, 
+        onProgress: ((String) -> Unit)? = null
+    ): String? = withContext(Dispatchers.IO) {
+        val cleanName = tvShowName.replace(Regex("[^a-zA-Z0-9 ]"), "").trim()
+        val episodeTag = String.format("S%02dE%02d", season, episode)
+        val searchQuery = "$cleanName $episodeTag"
+        val encodedQuery = URLEncoder.encode(searchQuery, "UTF-8")
+        
+        // 1. Get IMDB ID from TMDB
+        withContext(Dispatchers.Main) { onProgress?.invoke("🔍 Resolving IMDB ID...") }
+        val imdbId = try {
+            val response = com.epicgera.vtrae.api.TmdbApiClient.service.getTvExternalIds(tvShowId, com.epicgera.vtrae.api.TmdbApiClient.API_KEY)
+            response.imdb_id
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to get IMDB ID for $tvShowId: ${e.message}")
+            null
+        }
+
+        if (imdbId != null) {
+            withContext(Dispatchers.Main) { onProgress?.invoke("🔍 Searching Torrentio for $episodeTag...") }
+            try {
+                // Torrentio standard series query format: stream/series/{imdb_id}:{season}:{episode}.json
+                val torrentioUrl = "https://torrentio.strem.fun/stream/series/$imdbId:$season:$episode.json"
+                Log.d(TAG, "Requesting Torrentio: $torrentioUrl")
+                
+                val connection = URL(torrentioUrl).openConnection() as HttpURLConnection
+                connection.connectTimeout = 5000
+                connection.readTimeout = 5000
+                connection.setRequestProperty("User-Agent", "Mozilla/5.0")
+                
+                if (connection.responseCode == HttpURLConnection.HTTP_OK) {
+                    val json = connection.inputStream.bufferedReader().use { it.readText() }
+                    val root = JSONObject(json)
+                    if (root.has("streams")) {
+                        val streams = root.getJSONArray("streams")
+                        if (streams.length() > 0) {
+                            // Find best 1080p stream as a default, or just pick the first
+                            var targetMagnet = ""
+                            var targetTitle = ""
+                            
+                            for (i in 0 until streams.length()) {
+                                val s = streams.getJSONObject(i)
+                                val t = s.optString("title", "").uppercase()
+                                if (t.contains("1080P")) {
+                                    val match = Regex("magnet:.*").find(t) ?: Regex("magnet:.*").find(s.optString("url", ""))
+                                    if(s.has("infoHash")) {
+                                       val name = URLEncoder.encode(s.optString("title").lines().firstOrNull() ?: episodeTag, "UTF-8")
+                                       targetMagnet = buildMagnetLink(s.getString("infoHash"), name)
+                                       targetTitle = "1080p"
+                                       break
+                                    }
+                                }
+                            }
+                            
+                            // Fallback to first if no 1080p is explicit
+                            if (targetMagnet.isEmpty()) {
+                                val bestResult = streams.getJSONObject(0)
+                                if(bestResult.has("infoHash")) {
+                                     val name = URLEncoder.encode(episodeTag, "UTF-8")
+                                     targetMagnet = buildMagnetLink(bestResult.getString("infoHash"), name)
+                                     targetTitle = "Default Quality"
+                                }
+                            }
+                            
+                            if(targetMagnet.isNotEmpty()){
+                                Log.d(TAG, "Torrentio Episode Match! $targetTitle")
+                                withContext(Dispatchers.Main) { onProgress?.invoke("✅ Found on Torrentio!") }
+                                return@withContext targetMagnet
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Torrentio Episode Search Failed: ${e.message}")
+            }
+        }
+        
+        // Strategy 1: EZTV (specialized for TV) — dynamic mirror
+        withContext(Dispatchers.Main) { onProgress?.invoke("🔍 Searching EZTV for $episodeTag...") }
+        try {
+            val eztvDomain = resolveEztvDomain()
+            val eztvUrl = "https://$eztvDomain/api/get-torrents?limit=5&query=$encodedQuery"
+            val connection = URL(eztvUrl).openConnection() as HttpURLConnection
+            connection.connectTimeout = 5000
+            connection.readTimeout = 5000
+            connection.setRequestProperty("User-Agent", "Mozilla/5.0")
+            
+            if (connection.responseCode == HttpURLConnection.HTTP_OK) {
+                val json = connection.inputStream.bufferedReader().use { it.readText() }
+                val root = JSONObject(json)
+                if (root.has("torrents")) {
+                    val torrents = root.getJSONArray("torrents")
+                    for (i in 0 until torrents.length()) {
+                        val result = torrents.getJSONObject(i)
+                        val torrentTitle = result.optString("title", "").uppercase()
+                        // Verify it matches our exact episode
+                        if (torrentTitle.contains(episodeTag) && result.has("magnet_url")) {
+                            val rawMagnet = result.getString("magnet_url")
+                            val hashMatch = Regex("urn:btih:([a-zA-Z0-9]+)").find(rawMagnet)
+                            if (hashMatch != null) {
+                                val hash = hashMatch.groupValues[1]
+                                val name = URLEncoder.encode(result.optString("title", searchQuery), "UTF-8")
+                                val magnet = buildMagnetLink(hash, name)
+                                Log.d(TAG, "EZTV Episode Match! $torrentTitle")
+                                withContext(Dispatchers.Main) { onProgress?.invoke("✅ Found on EZTV!") }
+                                return@withContext magnet
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "EZTV Episode Search Failed: ${e.message}")
+        }
+        
+        // Strategy 2: Apibay (general fallback)
+        withContext(Dispatchers.Main) { onProgress?.invoke("🔍 Searching Apibay for $episodeTag...") }
+        try {
+            val apiBayUrl = "https://apibay.org/q.php?q=$encodedQuery"
+            val connection = URL(apiBayUrl).openConnection() as HttpURLConnection
+            connection.connectTimeout = 5000
+            connection.readTimeout = 5000
+            connection.setRequestProperty("User-Agent", "Mozilla/5.0")
+            
+            if (connection.responseCode == HttpURLConnection.HTTP_OK) {
+                val json = connection.inputStream.bufferedReader().use { it.readText() }
+                val results = JSONArray(json)
+                
+                for (i in 0 until results.length()) {
+                    val result = results.getJSONObject(i)
+                    val hash = result.getString("info_hash")
+                    val resultName = result.getString("name").uppercase()
+                    
+                    if (hash != "0000000000000000000000000000000000000000" && resultName.contains(episodeTag)) {
+                        val name = URLEncoder.encode(result.getString("name"), "UTF-8")
+                        val magnet = buildMagnetLink(hash, name)
+                        Log.d(TAG, "Apibay Episode Match! $resultName")
+                        withContext(Dispatchers.Main) { onProgress?.invoke("✅ Found on Apibay!") }
+                        return@withContext magnet
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Apibay Episode Search Failed: ${e.message}")
+        }
+        
+        // Strategy 3: LimeTorrents RSS
+        withContext(Dispatchers.Main) { onProgress?.invoke("🔍 Searching LimeTorrents for $episodeTag...") }
+        try {
+            val limeUrl = "https://www.limetorrents.fun/searchrss/$encodedQuery/"
+            val connection = URL(limeUrl).openConnection() as HttpURLConnection
+            connection.connectTimeout = 5000
+            connection.readTimeout = 5000
+            connection.setRequestProperty("User-Agent", "Mozilla/5.0")
+            
+            if (connection.responseCode == HttpURLConnection.HTTP_OK) {
+                val xml = connection.inputStream.bufferedReader().use { it.readText() }
+                val hashRegex = Regex("<enclosure url=\".*?/([a-fA-F0-9]{40})\\.torrent")
+                val hashMatch = hashRegex.find(xml)
+                
+                if (hashMatch != null) {
+                    val hash = hashMatch.groupValues[1]
+                    val magnet = buildMagnetLink(hash, encodedQuery)
+                    Log.d(TAG, "LimeTorrents Episode Match! Hash: $hash")
+                    withContext(Dispatchers.Main) { onProgress?.invoke("✅ Found on LimeTorrents!") }
+                    return@withContext magnet
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "LimeTorrents Episode Search Failed: ${e.message}")
+        }
+        
+        withContext(Dispatchers.Main) { onProgress?.invoke("❌ No torrents found for $episodeTag.") }
+        return@withContext null
+    }
+
+    /**
+     * NEW: Searches ALL torrent sources and returns every result found.
+     * Does NOT auto-pick — the user decides which one to stream.
+     * Sources: YTS, Apibay (PirateBay), LimeTorrents, Nyaa.
+     * EZTV removed per user request (returned false matches).
+     */
+    suspend fun searchAllSources(
+        title: String,
+        onProgress: ((String) -> Unit)? = null
+    ): List<TorrentResult> = withContext(Dispatchers.IO) {
+        val results = mutableListOf<TorrentResult>()
+        val cleanTitle = title.replace(Regex("[^a-zA-Z0-9 ]"), "").trim()
+        val query = URLEncoder.encode(cleanTitle, "UTF-8")
+        
+        Log.d(TAG, "searchAllSources: '$cleanTitle'")
+
+        // --- 1. YTS (Movies, high quality) — tries yts.mx then yts.bz ---
+        withContext(Dispatchers.Main) { onProgress?.invoke("🔍 Searching YTS...") }
+        val ytsDomains = listOf("yts.mx", "yts.bz")
+        for (ytsDomain in ytsDomains) {
+            try {
+                val ytsUrl = "https://$ytsDomain/api/v2/list_movies.json?query_term=$query&sort_by=seeds&limit=5"
+                val connection = URL(ytsUrl).openConnection() as HttpURLConnection
+                connection.connectTimeout = 5000
+                connection.readTimeout = 5000
+                
+                if (connection.responseCode == HttpURLConnection.HTTP_OK) {
+                    val json = connection.inputStream.bufferedReader().use { it.readText() }
+                    val root = JSONObject(json)
+                    val data = root.optJSONObject("data")
+                    
+                    if (data != null && data.has("movies")) {
+                        val movies = data.getJSONArray("movies")
+                        for (i in 0 until movies.length()) {
+                            val movie = movies.getJSONObject(i)
+                            val movieTitle = movie.optString("title", "Unknown")
+                            val torrents = movie.optJSONArray("torrents") ?: continue
+                            
+                            for (j in 0 until torrents.length()) {
+                                val t = torrents.getJSONObject(j)
+                                val hash = t.getString("hash")
+                                val quality = t.optString("quality", "")
+                                val size = t.optString("size", "?")
+                                val seeds = t.optInt("seeds", 0)
+                                val name = URLEncoder.encode(movieTitle, "UTF-8")
+                                
+                                results.add(TorrentResult(
+                                    title = "$movieTitle [$quality]",
+                                    magnetUrl = buildMagnetLink(hash, name),
+                                    source = "YTS",
+                                    seeds = seeds,
+                                    sizeDisplay = size
+                                ))
+                            }
+                        }
+                    }
+                    Log.d(TAG, "YTS ($ytsDomain) returned ${results.size} results")
+                    break // Success, don't try next domain
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "YTS ($ytsDomain) failed: ${e.message}")
+            }
+        }
+
+        // --- 2. Apibay / PirateBay (General) ---
+        withContext(Dispatchers.Main) { onProgress?.invoke("🔍 Searching PirateBay...") }
+        try {
+            val apiBayUrl = "https://apibay.org/q.php?q=$query"
+            val connection = URL(apiBayUrl).openConnection() as HttpURLConnection
+            connection.connectTimeout = 5000
+            connection.readTimeout = 5000
+            connection.setRequestProperty("User-Agent", "Mozilla/5.0")
+            
+            if (connection.responseCode == HttpURLConnection.HTTP_OK) {
+                val json = connection.inputStream.bufferedReader().use { it.readText() }
+                val arr = JSONArray(json)
+                val countBefore = results.size
+                
+                for (i in 0 until minOf(arr.length(), 5)) {
+                    val item = arr.getJSONObject(i)
+                    val hash = item.getString("info_hash")
+                    if (hash == "0000000000000000000000000000000000000000") continue
+                    
+                    val itemName = item.getString("name")
+                    val seeds = item.optInt("seeders", 0)
+                    val sizeBytes = item.optLong("size", 0)
+                    val sizeDisplay = formatSize(sizeBytes)
+                    val encodedName = URLEncoder.encode(itemName, "UTF-8")
+                    
+                    results.add(TorrentResult(
+                        title = itemName,
+                        magnetUrl = buildMagnetLink(hash, encodedName),
+                        source = "PirateBay",
+                        seeds = seeds,
+                        sizeDisplay = sizeDisplay
+                    ))
+                }
+                Log.d(TAG, "Apibay returned ${results.size - countBefore} results")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Apibay failed: ${e.message}")
+        }
+
+        // --- 3. LimeTorrents RSS ---
+        withContext(Dispatchers.Main) { onProgress?.invoke("🔍 Searching LimeTorrents...") }
+        try {
+            val limeUrl = "https://www.limetorrents.fun/searchrss/$query/"
+            val connection = URL(limeUrl).openConnection() as HttpURLConnection
+            connection.connectTimeout = 5000
+            connection.readTimeout = 5000
+            connection.setRequestProperty("User-Agent", "Mozilla/5.0")
+            
+            if (connection.responseCode == HttpURLConnection.HTTP_OK) {
+                val xml = connection.inputStream.bufferedReader().use { it.readText() }
+                val countBefore = results.size
+                
+                // Parse RSS items: <title>, <enclosure url="...HASH.torrent">, <description> contains Seeds/Leeches
+                val itemRegex = Regex("<item>([\\s\\S]*?)</item>")
+                val titleRegex = Regex("<title><!\\[CDATA\\[(.+?)]]></title>|<title>(.+?)</title>")
+                val hashRegex = Regex("<enclosure url=\".*?/([a-fA-F0-9]{40})\\.torrent")
+                val sizeRegex = Regex("Size: ([^|<]+)")
+                val seedRegex = Regex("Seeds: (\\d+)")
+                
+                for (itemMatch in itemRegex.findAll(xml).take(5)) {
+                    val itemXml = itemMatch.groupValues[1]
+                    val itemTitle = titleRegex.find(itemXml)?.let { it.groupValues[1].ifEmpty { it.groupValues[2] } } ?: continue
+                    val hash = hashRegex.find(itemXml)?.groupValues?.get(1) ?: continue
+                    val size = sizeRegex.find(itemXml)?.groupValues?.get(1)?.trim() ?: "?"
+                    val seeds = seedRegex.find(itemXml)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+                    
+                    results.add(TorrentResult(
+                        title = itemTitle,
+                        magnetUrl = buildMagnetLink(hash, URLEncoder.encode(itemTitle, "UTF-8")),
+                        source = "LimeTorrents",
+                        seeds = seeds,
+                        sizeDisplay = size
+                    ))
+                }
+                Log.d(TAG, "LimeTorrents returned ${results.size - countBefore} results")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "LimeTorrents failed: ${e.message}")
+        }
+
+        // --- 4. Nyaa (Anime) ---
+        withContext(Dispatchers.Main) { onProgress?.invoke("🔍 Searching Nyaa...") }
+        try {
+            val nyaaUrl = "https://nyaa.si/?page=rss&q=$query&c=0_0&f=0"
+            val connection = URL(nyaaUrl).openConnection() as HttpURLConnection
+            connection.connectTimeout = 5000
+            connection.readTimeout = 5000
+            connection.setRequestProperty("User-Agent", "Mozilla/5.0")
+            
+            if (connection.responseCode == HttpURLConnection.HTTP_OK) {
+                val xml = connection.inputStream.bufferedReader().use { it.readText() }
+                val countBefore = results.size
+                
+                val itemRegex = Regex("<item>([\\s\\S]*?)</item>")
+                val titleRegex = Regex("<title><!\\[CDATA\\[(.+?)]]></title>|<title>(.+?)</title>")
+                val hashRegex2 = Regex("<nyaa:infoHash>([a-fA-F0-9]{40})</nyaa:infoHash>")
+                val sizeRegex2 = Regex("<nyaa:size>(.+?)</nyaa:size>")
+                val seedRegex2 = Regex("<nyaa:seeders>(\\d+)</nyaa:seeders>")
+                
+                for (itemMatch in itemRegex.findAll(xml).take(5)) {
+                    val itemXml = itemMatch.groupValues[1]
+                    val itemTitle = titleRegex.find(itemXml)?.let { it.groupValues[1].ifEmpty { it.groupValues[2] } } ?: continue
+                    val hash = hashRegex2.find(itemXml)?.groupValues?.get(1) ?: continue
+                    val size = sizeRegex2.find(itemXml)?.groupValues?.get(1) ?: "?"
+                    val seeds = seedRegex2.find(itemXml)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+                    
+                    results.add(TorrentResult(
+                        title = itemTitle,
+                        magnetUrl = buildMagnetLink(hash, URLEncoder.encode(itemTitle, "UTF-8")),
+                        source = "Nyaa",
+                        seeds = seeds,
+                        sizeDisplay = size
+                    ))
+                }
+                Log.d(TAG, "Nyaa returned ${results.size - countBefore} results")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Nyaa failed: ${e.message}")
+        }
+
+        // --- 5. 1337x (General, great for TV) ---
+        withContext(Dispatchers.Main) { onProgress?.invoke("🔍 Searching 1337x...") }
+        try {
+            val leetQuery = cleanTitle.replace(" ", "+")
+            val baseUrl = "https://1337x.to"
+            val searchUrl = "$baseUrl/search/$leetQuery/1/"
+            val searchConn = URL(searchUrl).openConnection() as HttpURLConnection
+            searchConn.connectTimeout = 5000
+            searchConn.readTimeout = 5000
+            searchConn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+            searchConn.setRequestProperty("Accept", "text/html,application/xhtml+xml")
+            searchConn.setRequestProperty("Accept-Language", "en-US,en;q=0.9")
+
+            if (searchConn.responseCode == HttpURLConnection.HTTP_OK) {
+                val searchHtml = searchConn.inputStream.bufferedReader().use { it.readText() }
+                val countBefore = results.size
+
+                // Extract detail page URLs from search results: /torrent/12345/Name-Slug/
+                val detailLinkRegex = Regex("""href="(/torrent/\d+/[^"]+/)"""")
+                val detailUrls = detailLinkRegex.findAll(searchHtml)
+                    .map { it.groupValues[1] }
+                    .distinct()
+                    .take(5)
+                    .toList()
+
+                Log.d(TAG, "1337x found ${detailUrls.size} detail links")
+
+                // Fetch each detail page to extract magnet, seeds, and size
+                for (detailPath in detailUrls) {
+                    try {
+                        val detailConn = URL("$baseUrl$detailPath").openConnection() as HttpURLConnection
+                        detailConn.connectTimeout = 4000
+                        detailConn.readTimeout = 4000
+                        detailConn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+
+                        if (detailConn.responseCode == HttpURLConnection.HTTP_OK) {
+                            val detailHtml = detailConn.inputStream.bufferedReader().use { it.readText() }
+
+                            // Extract magnet link
+                            val magnetRegex = Regex("""href="(magnet:\?xt=urn:btih:[^"]+)"""")
+                            val magnetUrl = magnetRegex.find(detailHtml)?.groupValues?.get(1) ?: continue
+
+                            // Extract title from <h1> or <title>
+                            val titleRegex = Regex("""<h1>([^<]+)</h1>""")
+                            val itemTitle = titleRegex.find(detailHtml)?.groupValues?.get(1)?.trim()
+                                ?: detailPath.substringAfterLast("/").replace("-", " ").trimEnd('/')
+
+                            // Extract seeders
+                            val seedersRegex = Regex("""[Ss]eeders.*?(\d+)""", RegexOption.DOT_MATCHES_ALL)
+                            val seeds = seedersRegex.find(detailHtml)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+
+                            // Extract total size
+                            val sizeRegex = Regex("""[Tt]otal size.*?([\d.,]+\s*[KMGT]?B)""", RegexOption.DOT_MATCHES_ALL)
+                            val sizeDisplay = sizeRegex.find(detailHtml)?.groupValues?.get(1)?.trim() ?: "?"
+
+                            results.add(TorrentResult(
+                                title = itemTitle,
+                                magnetUrl = magnetUrl,
+                                source = "1337x",
+                                seeds = seeds,
+                                sizeDisplay = sizeDisplay
+                            ))
+                        }
+                        detailConn.disconnect()
+                    } catch (e: Exception) {
+                        Log.w(TAG, "1337x detail page failed: ${e.message}")
+                    }
+                }
+                Log.d(TAG, "1337x returned ${results.size - countBefore} results")
+            }
+            searchConn.disconnect()
+        } catch (e: Exception) {
+            Log.e(TAG, "1337x failed: ${e.message}")
+        }
+
+        // --- 6. EZTV (TV Shows specialist) — dynamic mirror ---
+        withContext(Dispatchers.Main) { onProgress?.invoke("🔍 Searching EZTV...") }
+        try {
+            val eztvQuery = cleanTitle.replace(" ", "-").lowercase()
+            val eztvDomain = resolveEztvDomain()
+            val eztvBaseUrl = "https://$eztvDomain"
+            val eztvSearchUrl = "$eztvBaseUrl/search/$eztvQuery"
+            val searchConn = URL(eztvSearchUrl).openConnection() as HttpURLConnection
+            searchConn.connectTimeout = 5000
+            searchConn.readTimeout = 5000
+            searchConn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+            searchConn.setRequestProperty("Accept", "text/html,application/xhtml+xml")
+
+            if (searchConn.responseCode == HttpURLConnection.HTTP_OK) {
+                val searchHtml = searchConn.inputStream.bufferedReader().use { it.readText() }
+                val countBefore = results.size
+
+                // EZTV search page has magnet links directly in the HTML table rows
+                // Pattern: <a href="magnet:?xt=urn:btih:HASH&dn=NAME...">
+                val magnetRegex = Regex("""href="(magnet:\?xt=urn:btih:[^"]+)"""")
+                val allMagnets = magnetRegex.findAll(searchHtml).toList()
+
+                // Also extract torrent titles from the same table — links to /ep/ pages
+                val titleRegex = Regex("""<a href="/ep/\d+/[^"]*"[^>]*class="epinfo"[^>]*>([^<]+)</a>""")
+                val titles = titleRegex.findAll(searchHtml).toList()
+
+                // Extract file sizes from the search results table
+                val sizeRegex = Regex("""class="forum_thread_post_end"[^>]*>([^<]+)</""")
+                val sizes = sizeRegex.findAll(searchHtml).toList()
+
+                // Extract seeders count
+                val seedRegex = Regex("""class="forum_thread_post"[^>]*>\s*<font[^>]*>(\d+)</font>""")
+                val seeds = seedRegex.findAll(searchHtml).toList()
+
+                // If we found magnet links directly on the search page, use them
+                if (allMagnets.isNotEmpty()) {
+                    val count = minOf(allMagnets.size, 10)
+                    for (i in 0 until count) {
+                        val magnetUrl = allMagnets[i].groupValues[1]
+                        // Extract title from the magnet's dn= parameter as fallback
+                        val dnRegex = Regex("""dn=([^&]+)""")
+                        val dnTitle = dnRegex.find(magnetUrl)?.groupValues?.get(1)
+                            ?.replace("+", " ")
+                            ?.replace("%20", " ")
+                            ?.replace(".", " ")
+                            ?: "Unknown"
+                        val itemTitle = if (i < titles.size) titles[i].groupValues[1].trim() else dnTitle
+                        val sizeDisplay = if (i < sizes.size) sizes[i].groupValues[1].trim() else "?"
+                        val seedCount = if (i < seeds.size) seeds[i].groupValues[1].toIntOrNull() ?: 0 else 0
+
+                        results.add(TorrentResult(
+                            title = itemTitle,
+                            magnetUrl = magnetUrl,
+                            source = "EZTV",
+                            seeds = seedCount,
+                            sizeDisplay = sizeDisplay
+                        ))
+                    }
+                } else {
+                    // Fallback: extract detail page URLs and visit each one
+                    val detailLinkRegex = Regex("""href="(/ep/\d+/[^"]+)"""")
+                    val detailUrls = detailLinkRegex.findAll(searchHtml)
+                        .map { it.groupValues[1] }
+                        .distinct()
+                        .take(5)
+                        .toList()
+
+                    Log.d(TAG, "EZTV found ${detailUrls.size} detail links (fallback)")
+
+                    for (detailPath in detailUrls) {
+                        try {
+                            val detailConn = URL("$eztvBaseUrl$detailPath").openConnection() as HttpURLConnection
+                            detailConn.connectTimeout = 4000
+                            detailConn.readTimeout = 4000
+                            detailConn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+
+                            if (detailConn.responseCode == HttpURLConnection.HTTP_OK) {
+                                val detailHtml = detailConn.inputStream.bufferedReader().use { it.readText() }
+
+                                val detailMagnetRegex = Regex("""href="(magnet:\?xt=urn:btih:[^"]+)"""")
+                                val magnetUrl = detailMagnetRegex.find(detailHtml)?.groupValues?.get(1) ?: continue
+
+                                val h1Regex = Regex("""<h1[^>]*>([^<]+)</h1>""")
+                                val itemTitle = h1Regex.find(detailHtml)?.groupValues?.get(1)?.trim()
+                                    ?.replace(" EZTV", "")?.replace(" eztv", "")
+                                    ?: detailPath.substringAfterLast("/").replace("-", " ")
+
+                                val detailSizeRegex = Regex("""Filesize.*?([\d.,]+\s*[KMGT]?B)""", RegexOption.DOT_MATCHES_ALL)
+                                val sizeDisplay = detailSizeRegex.find(detailHtml)?.groupValues?.get(1)?.trim() ?: "?"
+
+                                val detailSeedRegex = Regex("""[Ss]eeds.*?(\d+)""", RegexOption.DOT_MATCHES_ALL)
+                                val seedCount = detailSeedRegex.find(detailHtml)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+
+                                results.add(TorrentResult(
+                                    title = itemTitle,
+                                    magnetUrl = magnetUrl,
+                                    source = "EZTV",
+                                    seeds = seedCount,
+                                    sizeDisplay = sizeDisplay
+                                ))
+                            }
+                            detailConn.disconnect()
+                        } catch (e: Exception) {
+                            Log.w(TAG, "EZTV detail page failed: ${e.message}")
+                        }
+                    }
+                }
+                Log.d(TAG, "EZTV returned ${results.size - countBefore} results")
+            }
+            searchConn.disconnect()
+        } catch (e: Exception) {
+            Log.e(TAG, "EZTV failed: ${e.message}")
+        }
+
+        // --- 7. MSearch (Algolia-powered aggregator) ---
+        withContext(Dispatchers.Main) { onProgress?.invoke("🔍 Searching MSearch...") }
+        try {
+            val countBefore = results.size
+            val algoliaUrl = "https://7OOB1B3OF6-dsn.algolia.net/1/indexes/*/queries"
+            val body = JSONObject().apply {
+                put("requests", JSONArray().apply {
+                    put(JSONObject().apply {
+                        put("indexName", "stream")
+                        put("params", "query=${URLEncoder.encode(cleanTitle, "UTF-8")}&hitsPerPage=10")
+                    })
+                })
+            }
+
+            val connection = URL(algoliaUrl).openConnection() as HttpURLConnection
+            connection.requestMethod = "POST"
+            connection.connectTimeout = 5000
+            connection.readTimeout = 5000
+            connection.doOutput = true
+            connection.setRequestProperty("Content-Type", "application/json")
+            connection.setRequestProperty("x-algolia-application-id", "7OOB1B3OF6")
+            connection.setRequestProperty("x-algolia-api-key", "4c16fab3a20a692c2e63f48830b554e4")
+
+            OutputStreamWriter(connection.outputStream).use { it.write(body.toString()) }
+
+            if (connection.responseCode == HttpURLConnection.HTTP_OK) {
+                val json = connection.inputStream.bufferedReader().use { it.readText() }
+                val root = JSONObject(json)
+                val resultsArr = root.optJSONArray("results")
+                if (resultsArr != null && resultsArr.length() > 0) {
+                    val hits = resultsArr.getJSONObject(0).optJSONArray("hits")
+                    if (hits != null) {
+                        for (i in 0 until hits.length()) {
+                            val hit = hits.getJSONObject(i)
+                            val hitTitle = hit.optString("title", "Unknown")
+                            val magnetUrl = hit.optString("download", "")
+                            val seeders = hit.optInt("seeders", 0)
+                            val sizeRaw = hit.optString("size", "?")
+                            val sizeDisplay = if (sizeRaw != "?" && !sizeRaw.contains("B", ignoreCase = true)) {
+                                "$sizeRaw GB"
+                            } else sizeRaw
+
+                            if (magnetUrl.startsWith("magnet:")) {
+                                results.add(TorrentResult(
+                                    title = hitTitle,
+                                    magnetUrl = magnetUrl,
+                                    source = "MSearch",
+                                    seeds = seeders,
+                                    sizeDisplay = sizeDisplay
+                                ))
+                            } else if (hit.has("infohash")) {
+                                // Build magnet from infohash if direct magnet not available
+                                val hash = hit.getString("infohash")
+                                if (hash.isNotEmpty()) {
+                                    results.add(TorrentResult(
+                                        title = hitTitle,
+                                        magnetUrl = buildMagnetLink(hash, URLEncoder.encode(hitTitle, "UTF-8")),
+                                        source = "MSearch",
+                                        seeds = seeders,
+                                        sizeDisplay = sizeDisplay
+                                    ))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            connection.disconnect()
+            Log.d(TAG, "MSearch returned ${results.size - countBefore} results")
+        } catch (e: Exception) {
+            Log.e(TAG, "MSearch failed: ${e.message}")
+        }
+
+        // Sort by seeds descending so best results are on top
+        val sorted = results.sortedByDescending { it.seeds }
+        withContext(Dispatchers.Main) { onProgress?.invoke("✅ Found ${sorted.size} results total.") }
+        Log.d(TAG, "searchAllSources complete: ${sorted.size} total results")
+        return@withContext sorted
+    }
+
+    // --- PAHE DDL SCRAPER ---
+
+    /**
+     * Searches pahe.ink for Direct Download Links.
+     * Scrapes the WordPress search results page, visits detail pages,
+     * and extracts quality blocks with host download buttons.
+     */
+    suspend fun searchPahe(
+        title: String,
+        onProgress: ((String) -> Unit)? = null
+    ): List<DdlResult> = withContext(Dispatchers.IO) {
+        val results = mutableListOf<DdlResult>()
+        val cleanTitle = title.replace(Regex("[^a-zA-Z0-9 ]"), "").trim()
+        val query = URLEncoder.encode(cleanTitle, "UTF-8")
+
+        Log.d(TAG, "searchPahe: '$cleanTitle'")
+        withContext(Dispatchers.Main) { onProgress?.invoke("📥 Searching Pahe for DDLs...") }
+
+        try {
+            // Step 1: Search page
+            val searchUrl = "https://pahe.ink/?s=$query"
+            val searchConn = URL(searchUrl).openConnection() as HttpURLConnection
+            searchConn.connectTimeout = 8000
+            searchConn.readTimeout = 8000
+            searchConn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+            searchConn.setRequestProperty("Accept", "text/html,application/xhtml+xml")
+            searchConn.setRequestProperty("Accept-Language", "en-US,en;q=0.9")
+
+            if (searchConn.responseCode != HttpURLConnection.HTTP_OK) {
+                Log.w(TAG, "Pahe search returned HTTP ${searchConn.responseCode}")
+                searchConn.disconnect()
+                return@withContext results
+            }
+
+            val searchHtml = searchConn.inputStream.bufferedReader().use { it.readText() }
+            searchConn.disconnect()
+
+            // Extract article links: <h2 class="title"><a href="...">Title</a></h2>
+            // or generic WordPress: <h2 class="entry-title"><a href="...">
+            val articleLinkRegex = Regex("""<h2[^>]*class="[^"]*title[^"]*"[^>]*>\s*<a[^>]*href="([^"]+)"[^>]*>([^<]+)</a>""", RegexOption.IGNORE_CASE)
+            val articleMatches = articleLinkRegex.findAll(searchHtml).take(3).toList()
+
+            if (articleMatches.isEmpty()) {
+                // Fallback: try any <a> inside <article> blocks
+                val fallbackRegex = Regex("""<article[^>]*>.*?<a[^>]*href="(https?://pahe\.ink/[^"]+)"[^>]*>([^<]+)</a>""", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
+                val fallbackMatches = fallbackRegex.findAll(searchHtml).take(3).toList()
+                if (fallbackMatches.isEmpty()) {
+                    Log.d(TAG, "Pahe: no search results found")
+                    return@withContext results
+                }
+                for (match in fallbackMatches) {
+                    val detailUrl = match.groupValues[1]
+                    val articleTitle = match.groupValues[2].trim()
+                    val detailResults = scrapePaheDetailPage(detailUrl, articleTitle)
+                    results.addAll(detailResults)
+                }
+            } else {
+                Log.d(TAG, "Pahe: found ${articleMatches.size} search results")
+                for (match in articleMatches) {
+                    val detailUrl = match.groupValues[1]
+                    val articleTitle = match.groupValues[2].trim()
+                    Log.d(TAG, "Pahe detail page: $articleTitle -> $detailUrl")
+
+                    val detailResults = scrapePaheDetailPage(detailUrl, articleTitle)
+                    results.addAll(detailResults)
+                }
+            }
+
+            withContext(Dispatchers.Main) { onProgress?.invoke("📥 Found ${results.size} DDL links from Pahe.") }
+            Log.d(TAG, "searchPahe complete: ${results.size} DDL results")
+        } catch (e: Exception) {
+            Log.e(TAG, "Pahe search failed: ${e.message}")
+        }
+
+        return@withContext results
+    }
+
+    /**
+     * Scrapes a single pahe.ink detail page for quality blocks and download buttons.
+     */
+    private suspend fun scrapePaheDetailPage(detailUrl: String, movieTitle: String): List<DdlResult> {
+        val results = mutableListOf<DdlResult>()
+        try {
+            val conn = URL(detailUrl).openConnection() as HttpURLConnection
+            conn.connectTimeout = 8000
+            conn.readTimeout = 8000
+            conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+            conn.setRequestProperty("Accept", "text/html,application/xhtml+xml")
+
+            if (conn.responseCode != HttpURLConnection.HTTP_OK) {
+                conn.disconnect()
+                return results
+            }
+
+            val html = conn.inputStream.bufferedReader().use { it.readText() }
+            conn.disconnect()
+
+            // Extract quality blocks: <strong>720p x264 | 1.4 GB</strong> followed by download buttons
+            // Strategy: find all <strong> tags with resolution info, then find the download buttons that follow them
+            val qualityBlockRegex = Regex(
+                """<strong[^>]*>\s*([^<]*?(?:480p|720p|1080p|2160p|4K)[^<]*?(?:\|[^<]*?)?)\s*</strong>(.*?)(?=<strong|$)""",
+                setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE)
+            )
+
+            // Download button: <a class="shortc-button ..." href="...">PD</a>
+            val buttonRegex = Regex(
+                """<a[^>]*class="[^"]*shortc-button[^"]*"[^>]*href="([^"]+)"[^>]*>([^<]+)</a>""",
+                RegexOption.IGNORE_CASE
+            )
+
+            val qualityBlocks = qualityBlockRegex.findAll(html).toList()
+
+            if (qualityBlocks.isNotEmpty()) {
+                for (block in qualityBlocks) {
+                    val qualityLabel = block.groupValues[1].trim()
+                        .replace(Regex("\\s+"), " ")
+                    val blockContent = block.groupValues[2]
+
+                    // Extract size from the quality label (e.g. "720p x264 | 1.4 GB")
+                    val sizeFromLabel = Regex("""\|\s*([\d.,]+\s*[KMGT]?B)""", RegexOption.IGNORE_CASE)
+                        .find(qualityLabel)?.groupValues?.get(1)?.trim() ?: "?"
+                    val qualityOnly = qualityLabel.replace(Regex("""\s*\|.*"""), "").trim()
+
+                    // Find all download buttons in this quality block
+                    val buttons = buttonRegex.findAll(blockContent).toList()
+                    for (btn in buttons) {
+                        val downloadUrl = btn.groupValues[1]
+                        val hostCode = btn.groupValues[2].trim().uppercase()
+
+                        // Skip non-download buttons (MediaInfo, etc.)
+                        if (hostCode == "MEDIAINFO" || hostCode == "INFO") continue
+
+                        val hostFullName = mapHostCode(hostCode)
+
+                        results.add(DdlResult(
+                            title = movieTitle,
+                            quality = qualityOnly,
+                            sizeDisplay = sizeFromLabel,
+                            host = hostCode,
+                            hostFullName = hostFullName,
+                            downloadUrl = downloadUrl
+                        ))
+                    }
+                }
+            } else {
+                // Fallback: just grab all shortc-button links on the page
+                Log.d(TAG, "Pahe: no quality blocks found, falling back to all buttons")
+                val allButtons = buttonRegex.findAll(html).toList()
+                for (btn in allButtons) {
+                    val downloadUrl = btn.groupValues[1]
+                    val hostCode = btn.groupValues[2].trim().uppercase()
+                    if (hostCode == "MEDIAINFO" || hostCode == "INFO") continue
+
+                    results.add(DdlResult(
+                        title = movieTitle,
+                        quality = "Unknown",
+                        sizeDisplay = "?",
+                        host = hostCode,
+                        hostFullName = mapHostCode(hostCode),
+                        downloadUrl = downloadUrl
+                    ))
+                }
+            }
+
+            Log.d(TAG, "Pahe detail page '$movieTitle': ${results.size} DDL links")
+        } catch (e: Exception) {
+            Log.w(TAG, "Pahe detail page scrape failed: ${e.message}")
+        }
+        return results
+    }
+
+    /**
+     * Maps Pahe host shortcodes to full readable names.
+     */
+    private fun mapHostCode(code: String): String {
+        return when (code) {
+            "PD" -> "PixelDrain"
+            "MG" -> "Mega"
+            "GD" -> "GDrive"
+            "VF" -> "Voe"
+            "1F" -> "1Fichier"
+            "1D" -> "OneDrive"
+            "QW" -> "Qiwi"
+            "UP" -> "Uptobox"
+            "MF" -> "MediaFire"
+            "ZP" -> "Zippyshare"
+            "BD" -> "BayFiles"
+            else -> code
+        }
+    }
+
+    /**
+     * Searches MSearch (Algolia) for a single best magnet link.
+     * Used by findMagnetForTitle as a fallback strategy.
+     */
+    private suspend fun searchMSearch(cleanTitle: String): String? {
+        try {
+            val algoliaUrl = "https://7OOB1B3OF6-dsn.algolia.net/1/indexes/*/queries"
+            val body = JSONObject().apply {
+                put("requests", JSONArray().apply {
+                    put(JSONObject().apply {
+                        put("indexName", "stream")
+                        put("params", "query=${URLEncoder.encode(cleanTitle, "UTF-8")}&hitsPerPage=3")
+                    })
+                })
+            }
+
+            val connection = URL(algoliaUrl).openConnection() as HttpURLConnection
+            connection.requestMethod = "POST"
+            connection.connectTimeout = 5000
+            connection.readTimeout = 5000
+            connection.doOutput = true
+            connection.setRequestProperty("Content-Type", "application/json")
+            connection.setRequestProperty("x-algolia-application-id", "7OOB1B3OF6")
+            connection.setRequestProperty("x-algolia-api-key", "4c16fab3a20a692c2e63f48830b554e4")
+
+            OutputStreamWriter(connection.outputStream).use { it.write(body.toString()) }
+
+            if (connection.responseCode == HttpURLConnection.HTTP_OK) {
+                val json = connection.inputStream.bufferedReader().use { it.readText() }
+                val root = JSONObject(json)
+                val resultsArr = root.optJSONArray("results")
+                if (resultsArr != null && resultsArr.length() > 0) {
+                    val hits = resultsArr.getJSONObject(0).optJSONArray("hits")
+                    if (hits != null && hits.length() > 0) {
+                        // Pick the hit with the most seeders
+                        var bestMagnet: String? = null
+                        var bestSeeds = -1
+                        for (i in 0 until hits.length()) {
+                            val hit = hits.getJSONObject(i)
+                            val magnetUrl = hit.optString("download", "")
+                            val seeders = hit.optInt("seeders", 0)
+                            if (magnetUrl.startsWith("magnet:") && seeders > bestSeeds) {
+                                bestMagnet = magnetUrl
+                                bestSeeds = seeders
+                            } else if (hit.has("infohash") && seeders > bestSeeds) {
+                                val hash = hit.getString("infohash")
+                                val name = URLEncoder.encode(hit.optString("title", cleanTitle), "UTF-8")
+                                if (hash.isNotEmpty()) {
+                                    bestMagnet = buildMagnetLink(hash, name)
+                                    bestSeeds = seeders
+                                }
+                            }
+                        }
+                        return bestMagnet
+                    }
+                }
+            }
+            connection.disconnect()
+        } catch (e: Exception) {
+            Log.e(TAG, "MSearch single search failed: ${e.message}")
+        }
+        return null
+    }
+
+    /**
+     * Dynamically resolves the current EZTV domain from eztvstatus.org.
+     * Caches the result for 1 hour to avoid hammering the status page.
+     * Falls back to "eztvx.to" if resolution fails.
+     */
+    private suspend fun resolveEztvDomain(): String {
+        val now = System.currentTimeMillis()
+        cachedEztvDomain?.let { domain ->
+            if (now < eztvDomainExpiry) {
+                Log.d(TAG, "Using cached EZTV domain: $domain")
+                return domain
+            }
+        }
+
+        try {
+            val statusUrl = "https://eztvstatus.org/"
+            val connection = URL(statusUrl).openConnection() as HttpURLConnection
+            connection.connectTimeout = 4000
+            connection.readTimeout = 4000
+            connection.setRequestProperty("User-Agent", "Mozilla/5.0")
+
+            if (connection.responseCode == HttpURLConnection.HTTP_OK) {
+                val html = connection.inputStream.bufferedReader().use { it.readText() }
+                
+                // The status page lists the primary domain as a link, e.g. "https://eztvx.to"
+                val domainRegex = Regex("""primary domain is.*?https?://([a-zA-Z0-9._-]+)""", RegexOption.DOT_MATCHES_ALL)
+                val match = domainRegex.find(html)
+                if (match != null) {
+                    val domain = match.groupValues[1].trim()
+                    Log.d(TAG, "Resolved EZTV domain from status page: $domain")
+                    cachedEztvDomain = domain
+                    eztvDomainExpiry = now + 3600_000L // Cache for 1 hour
+                    connection.disconnect()
+                    return domain
+                }
+
+                // Fallback: look for mirror links
+                val mirrorRegex = Regex("""https?://([a-zA-Z0-9]+\.(?:to|xyz|wf|tf|yt))""")
+                val mirrors = mirrorRegex.findAll(html)
+                    .map { it.groupValues[1] }
+                    .filter { it.startsWith("eztv") }
+                    .toList()
+                if (mirrors.isNotEmpty()) {
+                    val domain = mirrors.first()
+                    Log.d(TAG, "Resolved EZTV mirror from status page: $domain")
+                    cachedEztvDomain = domain
+                    eztvDomainExpiry = now + 3600_000L
+                    connection.disconnect()
+                    return domain
+                }
+            }
+            connection.disconnect()
+        } catch (e: Exception) {
+            Log.w(TAG, "EZTV domain resolution failed: ${e.message}")
+        }
+
+        // Hard fallback
+        val fallback = "eztvx.to"
+        Log.d(TAG, "Using fallback EZTV domain: $fallback")
+        cachedEztvDomain = fallback
+        eztvDomainExpiry = now + 1800_000L // Cache fallback for 30 min
+        return fallback
+    }
+
+    @androidx.annotation.VisibleForTesting
+    internal fun formatSize(bytes: Long): String {
+        if (bytes <= 0) return "?"
+        val gb = bytes / (1024.0 * 1024.0 * 1024.0)
+        val mb = bytes / (1024.0 * 1024.0)
+        return if (gb >= 1.0) String.format(java.util.Locale.US, "%.1f GB", gb)
+               else String.format(java.util.Locale.US, "%.0f MB", mb)
+    }
+
+    @androidx.annotation.VisibleForTesting
+    internal fun buildMagnetLink(infoHash: String, encodedName: String): String {
+        // High-performance public trackers to kickstart the P2P connection instantly
+        val trackers = listOf(
+            "udp://tracker.opentrackr.org:1337/announce",
+            "udp://tracker.openbittorrent.com:6969/announce",
+            "udp://tracker.torrent.eu.org:451/announce",
+            "udp://explodie.org:6969/announce"
+        )
+        
+        var magnet = "magnet:?xt=urn:btih:$infoHash&dn=$encodedName"
+        for (tracker in trackers) {
+            val encodedTracker = URLEncoder.encode(tracker, "UTF-8")
+            magnet += "&tr=$encodedTracker"
+        }
+        
+        return magnet
+    }
+}

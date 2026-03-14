@@ -9,11 +9,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.imagis"
+    namespace = "com.epicgera.vtrae"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.example.imagis"
+        applicationId = "com.epicgera.vtrae"
         minSdk = 24
         targetSdk = 34
         versionCode = 1
@@ -22,7 +22,8 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
@@ -113,3 +114,4 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
+

@@ -11,7 +11,10 @@
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
-        android:label="iMagis"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:label="VTRÆ"
+        android:localeConfig="@xml/locales_config"
+        android:networkSecurityConfig="@xml/network_security_config"
         android:usesCleartextTraffic="true"
         android:banner="@drawable/app_banner"
         android:theme="@style/Theme.Leanback">
@@ -37,7 +40,8 @@
 
         <activity android:name=".ui.WebViewActivity" 
                   android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|uiMode" />
-        <activity android:name=".ui.PlayerActivity" 
+        <activity android:name=".ui.PlayerActivity"
+                  android:theme="@style/Theme.AppCompat.NoActionBar"
                   android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|uiMode"
                   android:launchMode="singleTop" />
                   
@@ -74,7 +78,7 @@
 
         <!-- Required to publish channels to the Android TV Home Screen -->
         <service
-            android:name=".service.ImagisTvInputService"
+            android:name=".service.VtraeTvInputService"
             android:permission="android.permission.BIND_TV_INPUT"
             android:exported="true">
             <intent-filter>

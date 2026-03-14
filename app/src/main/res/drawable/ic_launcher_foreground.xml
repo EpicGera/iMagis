@@ -1,0 +1,40 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Subtle æther thread lines -->
+    <path
+        android:strokeColor="#1A00E5FF"
+        android:strokeWidth="0.4"
+        android:pathData="M20,30 Q40,20 54,40 Q68,60 88,45"/>
+    <path
+        android:strokeColor="#1500E5FF"
+        android:strokeWidth="0.3"
+        android:pathData="M15,55 Q35,40 54,55 Q73,70 95,50"/>
+    <path
+        android:strokeColor="#1200E5FF"
+        android:strokeWidth="0.35"
+        android:pathData="M25,70 Q45,60 60,68 Q75,76 90,62"/>
+
+    <!-- "VTR" text in white -->
+    <group android:translateX="22" android:translateY="38">
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M0,0 L5.5,18 L8,18 L13.5,0 L11,0 L6.75,14.5 L2.5,0 Z"/>
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M16,0 L16,2.5 L21,2.5 L21,18 L23.5,18 L23.5,2.5 L28.5,2.5 L28.5,0 Z"/>
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M32,0 L32,18 L34.5,18 L34.5,10.5 L39,10.5 Q43,10.5 43,7 L43,3.5 Q43,0 39,0 Z M34.5,2.5 L38.5,2.5 Q40.5,2.5 40.5,4 L40.5,6.5 Q40.5,8 38.5,8 L34.5,8 Z M39,10.5 L44,18 L41.5,18 L36.5,10.5"/>
+    </group>
+
+    <!-- "Æ" glyph in glowing cyan -->
+    <group android:translateX="22" android:translateY="56">
+        <path
+            android:fillColor="#00E5FF"
+            android:pathData="M5,0 L0,12 L2.2,12 L3.2,9.5 L10.8,9.5 L10.8,12 L17,12 L17,9.5 L18.8,9.5 L18.8,7.5 L17,7.5 L17,5 L18.8,5 L18.8,3 L17,3 L17,0 L10.8,0 L10.8,3 L6.5,3 Z M7.3,5 L10.8,5 L10.8,7.5 L5.8,7.5 Z M13,2 L14.8,2 L14.8,10 L13,10 Z"/>
+    </group>
+</vector>

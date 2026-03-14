@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "iMagis"
+rootProject.name = "VTRÆ"
 include(":app")

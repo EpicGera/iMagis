@@ -6,8 +6,9 @@
 
     <fragment
         android:id="@+id/downloads_fragment"
-        android:name="com.example.imagis.ui.DownloadsFragment"
+        android:name="com.epicgera.vtrae.ui.DownloadsFragment"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
 </FrameLayout>
+

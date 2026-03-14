@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">iMagis</string>
-    <string name="browse_title">MediaHub TV</string>
+    <string name="app_name">VTR Æ</string>
+    <string name="browse_title">VTR Æ</string>
     
     <!-- Navigation / Menu -->
     <string name="nav_home">Inicio</string>
@@ -11,8 +11,13 @@
     <string name="nav_livetv">TV en Vivo</string>
     <string name="nav_platforms">Plataformas</string>
     <string name="nav_favorites">Favoritos</string>
+    <string name="nav_history">Historial</string>
     <string name="nav_downloads">Descargas</string>
     <string name="nav_settings">Configuración</string>
+
+    <!-- Settings -->
+    <string name="settings_language">Idioma / Language</string>
+    <string name="settings_language_desc">Cambiar idioma de la aplicación (English / Español)</string>
 
     <!-- Categories -->
     <string name="category_trending">Tendencia</string>
@@ -132,4 +137,9 @@
     <string name="error_no_episodes_found">No se encontraron episodios (Análisis vacío)</string>
     <string name="error_generic">Error: %1$s</string>
     <string name="error_sync_failed">Error en la sincronización de la base de datos. Verifica tu conexión.</string>
+
+    <!-- Splash / Branding -->
+    <string name="splash_logo_short">VTR</string>
+    <string name="splash_title">VTR Æ</string>
+    <string name="splash_subtitle">Hilos del Æther.</string>
 </resources>

@@ -4,7 +4,7 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:padding="16dp"
-    android:background="@drawable/torrent_item_selector"
+    android:background="@drawable/bg_vtr_list_selector"
     android:descendantFocusability="blocksDescendants">
 
     <!-- Row 1: Source badge + Title -->

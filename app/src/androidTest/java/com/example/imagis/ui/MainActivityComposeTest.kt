@@ -1,4 +1,4 @@
-package com.example.imagis.ui
+package com.epicgera.vtrae.ui
 
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
@@ -25,3 +25,4 @@ class MainActivityComposeTest {
         composeTestRule.onNodeWithText("Live TV").assertIsDisplayed()
     }
 }
+
