@@ -1,13 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Crunchyroll: orange background with white swirl/manga logo -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="120dp"
     android:height="120dp"
     android:viewportWidth="120"
     android:viewportHeight="120">
+    <!-- Orange background -->
     <path
         android:fillColor="#F47521"
-        android:pathData="M60,10 C87.6,10 110,32.4 110,60 C110,87.6 87.6,110 60,110 C32.4,110 10,87.6 10,60 C10,32.4 32.4,10 60,10Z" />
+        android:pathData="M16,8 L104,8 C108.4,8 112,11.6 112,16 L112,104 C112,108.4 108.4,112 104,112 L16,112 C11.6,112 8,108.4 8,104 L8,16 C8,11.6 11.6,8 16,8Z" />
+    <!-- Outer white circle (manga eye) -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M40,35 L40,85 L50,85 L50,65 L60,65 L70,85 L82,85 L70,62 C76,58 80,52 80,45 C80,38 74,35 67,35 Z M50,45 L65,45 C68,45 70,47 70,50 C70,53 68,55 65,55 L50,55 Z" />
+        android:pathData="M60,25 C79.3,25 95,40.7 95,60 C95,79.3 79.3,95 60,95 C40.7,95 25,79.3 25,60 C25,40.7 40.7,25 60,25Z" />
+    <!-- Orange inner circle (iris) -->
+    <path
+        android:fillColor="#F47521"
+        android:pathData="M60,35 C73.8,35 85,46.2 85,60 C85,73.8 73.8,85 60,85 C46.2,85 35,73.8 35,60 C35,46.2 46.2,35 60,35Z" />
+    <!-- White swirl/highlight dot -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M64,44 C69,44 73,48 73,53 C73,58 69,62 64,62 C59,62 55,58 55,53 C55,48 59,44 64,44Z" />
+    <!-- Small catchlight -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M52,66 A4,4 0 1,0 56,66 A4,4 0 1,0 52,66Z" />
 </vector>

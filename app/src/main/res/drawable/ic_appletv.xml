@@ -1,16 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Apple TV+ style dark circle icon -->
+<!-- Apple TV+: dark background with Apple logo and tv+ text -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="120dp"
     android:height="120dp"
     android:viewportWidth="120"
     android:viewportHeight="120">
-    <!-- Dark circle background -->
+    <!-- Dark background -->
     <path
-        android:fillColor="#333333"
-        android:pathData="M60,10 C87.6,10 110,32.4 110,60 C110,87.6 87.6,110 60,110 C32.4,110 10,87.6 10,60 C10,32.4 32.4,10 60,10Z" />
-    <!-- Letter A -->
+        android:fillColor="#1C1C1E"
+        android:pathData="M16,8 L104,8 C108.4,8 112,11.6 112,16 L112,104 C112,108.4 108.4,112 104,112 L16,112 C11.6,112 8,108.4 8,104 L8,16 C8,11.6 11.6,8 16,8Z" />
+    <!-- Simplified apple shape -->
+    <path
+        android:fillColor="#A2AAAD"
+        android:pathData="M52,32 C52,28 56,26 60,28 C64,26 68,28 68,32 C72,34 74,40 72,48 C70,56 66,62 60,66 C54,62 50,56 48,48 C46,40 48,34 52,32Z" />
+    <!-- Apple stem -->
+    <path
+        android:fillColor="#A2AAAD"
+        android:pathData="M58,26 Q60,20 64,22" 
+        android:strokeColor="#A2AAAD"
+        android:strokeWidth="2" />
+    <!-- "tv+" text -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M60,35 L42,85 L52,85 L55,75 L65,75 L68,85 L78,85 L60,35Z M57,67 L60,50 L63,67 Z" />
+        android:pathData="M36,76 L36,80 L42,80 L42,90 L46,90 L46,80 L52,80 L52,76Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M55,76 L61,90 L65,90 L71,76 L67,76 L63,86 L59,76Z" />
+    <!-- Plus sign -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M78,80 L78,76 L82,76 L82,80 L86,80 L86,84 L82,84 L82,88 L78,88 L78,84 L74,84 L74,80Z" />
 </vector>

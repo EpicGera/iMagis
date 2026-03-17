@@ -13,19 +13,24 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.ui.platform.ComposeView
+import androidx.lifecycle.lifecycleScope
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MimeTypes
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.DefaultLoadControl
+import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.PlayerView
 import com.epicgera.vtrae.R
 import com.epicgera.vtrae.db.AppDatabase
 import com.epicgera.vtrae.db.WatchHistoryEntity
+import com.epicgera.vtrae.utils.SubtitleManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -146,14 +151,17 @@ class VideoPlayerActivity : AppCompatActivity() {
             .build()
 
         // Create a data source factory that allows cross-protocol redirects for IPTV streams
-        val dataSourceFactory = DefaultHttpDataSource.Factory()
+        val httpDataSourceFactory = DefaultHttpDataSource.Factory()
             .setAllowCrossProtocolRedirects(true)
             .setConnectTimeoutMs(15000)
             .setReadTimeoutMs(15000)
 
-        // Build the ExoPlayer instance with the track selector, renderers, load control, and HTTP data source
+        // Wrap in DefaultDataSource.Factory so both local files (torrent) and remote URLs work
+        val dataSourceFactory = DefaultDataSource.Factory(this, httpDataSourceFactory)
+
+        // Build the ExoPlayer instance with the track selector, renderers, load control, and data source
         player = ExoPlayer.Builder(this, renderersFactory)
-            .setMediaSourceFactory(DefaultMediaSourceFactory(this).setDataSourceFactory(dataSourceFactory))
+            .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
             .setTrackSelector(trackSelector)
             .setLoadControl(loadControl)
             .build().also { exoPlayer ->
@@ -172,6 +180,9 @@ class VideoPlayerActivity : AppCompatActivity() {
             if (resumePositionMs > 0L) {
                 exoPlayer.seekTo(resumePositionMs)
             }
+
+            // ── Auto-load Spanish subtitles from OpenSubtitles ──
+            loadSpanishSubtitles(exoPlayer, url)
             
             // Listener for errors and state changes
             exoPlayer.addListener(object : Player.Listener {
@@ -212,6 +223,8 @@ class VideoPlayerActivity : AppCompatActivity() {
                     super.onPlayerError(error)
                     
                     val errorMsg = error.message ?: ""
+                    val isLocalFile = currentUrl?.startsWith("/") == true
+                    
                     val isCodecError = errorMsg.contains("EXCEEDS_CAPABILITIES", ignoreCase = true) ||
                         errorMsg.contains("MediaCodecVideoRenderer", ignoreCase = true) ||
                         errorMsg.contains("Decoder init failed", ignoreCase = true) ||
@@ -220,16 +233,69 @@ class VideoPlayerActivity : AppCompatActivity() {
                         error.errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_DECODER_INIT_FAILED
                     
                     if (isCodecError) {
-                        // Offer to open in external player (VLC/MX Player)
                         showExternalPlayerDialog(
                             "⚠️ Codec Unsupported",
                             "This video uses a codec your device can't decode internally (HEVC 4K).\n\nOpen in an external player like VLC or MX Player?"
+                        )
+                    } else if (isLocalFile) {
+                        // Local torrent files (MKV, DTS, AC3, multi-track, etc.) often fail in ExoPlayer.
+                        // Always offer external player since VLC/MX Player handle them much better.
+                        showExternalPlayerDialog(
+                            "⚠️ Playback Failed",
+                            "This file uses a format ExoPlayer can't handle (MKV, DTS, AC3, etc.).\n\nOpen in an external player like VLC or MX Player?"
                         )
                     } else {
                         com.epicgera.vtrae.ui.components.VtrToastManager.showError(getString(R.string.msg_player_error, error.message))
                     }
                 }
             })
+        }
+    }
+
+    /**
+     * Fetches Spanish subtitles from OpenSubtitles and injects them into the player.
+     * Runs in background — playback is never blocked or interrupted.
+     */
+    private fun loadSpanishSubtitles(exoPlayer: ExoPlayer, videoUrl: String) {
+        val tmdbIdRaw = contentId?.toIntOrNull() ?: return
+        val type = contentType ?: "MOVIE"
+
+        // Parse "S01E02" → (1, 2) for TV series
+        val episodePair = SubtitleManager.parseEpisodeLabel(episodeLabel)
+
+        lifecycleScope.launch {
+            val srtFile = SubtitleManager.fetchSpanishSubtitle(
+                context = this@VideoPlayerActivity,
+                tmdbId = tmdbIdRaw,
+                contentType = type,
+                seasonNumber = episodePair?.first,
+                episodeNumber = episodePair?.second
+            ) ?: return@launch // No subtitles found — silently continue
+
+            // Build a new MediaItem with the subtitle sidecar
+            val subtitleConfig = MediaItem.SubtitleConfiguration.Builder(
+                Uri.fromFile(srtFile)
+            )
+                .setMimeType(MimeTypes.APPLICATION_SUBRIP)
+                .setLanguage("es")
+                .setLabel("Español")
+                .setSelectionFlags(C.SELECTION_FLAG_DEFAULT)
+                .build()
+
+            val newMediaItem = MediaItem.Builder()
+                .setUri(videoUrl)
+                .setSubtitleConfigurations(listOf(subtitleConfig))
+                .build()
+
+            // Seamlessly swap the media item, preserving playback position
+            val currentPosition = exoPlayer.currentPosition
+            val wasPlaying = exoPlayer.isPlaying
+            exoPlayer.setMediaItem(newMediaItem)
+            exoPlayer.prepare()
+            exoPlayer.seekTo(currentPosition)
+            if (wasPlaying) exoPlayer.play()
+
+            com.epicgera.vtrae.ui.components.VtrToastManager.showInfo("🇪🇸 Spanish subtitles loaded")
         }
     }
 

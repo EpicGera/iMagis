@@ -20,6 +20,8 @@ object M3uParser {
         var currentName: String? = null
         var currentLogo: String? = null
         var currentGroup: String? = null
+        var currentReferrer: String? = null
+        var currentUserAgent: String? = null
 
         while (line != null) {
             val trimmed = line.trim()
@@ -32,6 +34,22 @@ object M3uParser {
                 currentGroup = groupRegex.find(trimmed)?.groupValues?.get(1) ?: "Uncategorized"
 
                 currentName = trimmed.substringAfterLast(",").trim()
+
+                // Some M3U files embed http-referrer / http-user-agent in the EXTINF line itself
+                val refInline = Regex("""http-referrer="([^"]+)"""").find(trimmed)
+                if (refInline != null) currentReferrer = refInline.groupValues[1]
+                val uaInline = Regex("""http-user-agent="([^"]+)"""").find(trimmed)
+                if (uaInline != null) currentUserAgent = uaInline.groupValues[1]
+            }
+            // Parse #EXTVLCOPT tags (standard M3U format for VLC options)
+            else if (trimmed.startsWith("#EXTVLCOPT", ignoreCase = true)) {
+                val value = trimmed.substringAfter(":", "").trim()
+                when {
+                    value.startsWith("http-referrer=", ignoreCase = true) ->
+                        currentReferrer = value.substringAfter("=")
+                    value.startsWith("http-user-agent=", ignoreCase = true) ->
+                        currentUserAgent = value.substringAfter("=")
+                }
             }
             else if (trimmed.isNotEmpty() && !trimmed.startsWith("#")) {
                 if (currentName != null) {
@@ -71,13 +89,17 @@ object M3uParser {
                             group = currentGroup,
                             isSeries = isTvShow,
                             season = extractedSeason,
-                            episode = extractedEpisode
+                            episode = extractedEpisode,
+                            referrer = currentReferrer,
+                            userAgent = currentUserAgent
                         )
                     )
                     
                     currentName = null
                     currentLogo = null
                     currentGroup = null
+                    currentReferrer = null
+                    currentUserAgent = null
                 }
             }
             line = reader.readLine()

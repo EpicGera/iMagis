@@ -44,9 +44,10 @@ object ChannelStore {
         IptvChannel(
             name = "América TV",
             logoUrl = "https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/America_TV_2020.svg/512px-America_TV_2020.svg.png",
-            streamUrl = "https://prepublish.f.qaotic.net/a07/americahls-100056/playlist_720p.m3u8",
+            streamUrl = "dai://OY2i_lL4SMyXE5Zaj4ULEg",  // Resolved at runtime via Google DAI
             fallbackUrls = emptyList(),
-            group = "Entretenimiento"
+            group = "Entretenimiento",
+            daiEventId = "OY2i_lL4SMyXE5Zaj4ULEg"
         ),
         IptvChannel(
             name = "Telefe",

@@ -72,6 +72,11 @@ class IptvActivity : ComponentActivity() {
                             if (channel.fallbackUrls.isNotEmpty()) {
                                 putExtra("FALLBACK_URLS", channel.fallbackUrls.toTypedArray())
                             }
+                            // Pass HTTP headers for CDNs that require Referer/UA
+                            channel.referrer?.let { putExtra("HTTP_REFERRER", it) }
+                            channel.userAgent?.let { putExtra("HTTP_USER_AGENT", it) }
+                            // Pass Google DAI event ID for session-based streams
+                            channel.daiEventId?.let { putExtra("DAI_EVENT_ID", it) }
                         }
                         startActivity(intent)
                         overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
@@ -237,7 +242,11 @@ class IptvActivity : ComponentActivity() {
             primary.copy(
                 fallbackUrls = fallbacks,
                 // Use the first available logo
-                logoUrl = primary.logoUrl ?: group.mapNotNull { it.logoUrl }.firstOrNull()
+                logoUrl = primary.logoUrl ?: group.mapNotNull { it.logoUrl }.firstOrNull(),
+                // Preserve headers from any source
+                referrer = primary.referrer ?: group.mapNotNull { it.referrer }.firstOrNull(),
+                userAgent = primary.userAgent ?: group.mapNotNull { it.userAgent }.firstOrNull(),
+                daiEventId = primary.daiEventId ?: group.mapNotNull { it.daiEventId }.firstOrNull()
             )
         }
     }

@@ -39,7 +39,10 @@ data class IptvChannel(
     val group: String?,
     val isSeries: Boolean = false,
     val season: Int? = null,
-    val episode: Int? = null
+    val episode: Int? = null,
+    val referrer: String? = null,
+    val userAgent: String? = null,
+    val daiEventId: String? = null
 )
 
 /**

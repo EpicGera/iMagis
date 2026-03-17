@@ -1,16 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Hulu style green circle icon -->
+<!-- Hulu: green background with white "hulu" text -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="120dp"
     android:height="120dp"
     android:viewportWidth="120"
     android:viewportHeight="120">
-    <!-- Green circle background -->
+    <!-- Green background -->
     <path
         android:fillColor="#1CE783"
-        android:pathData="M60,10 C87.6,10 110,32.4 110,60 C110,87.6 87.6,110 60,110 C32.4,110 10,87.6 10,60 C10,32.4 32.4,10 60,10Z" />
-    <!-- Letter H -->
+        android:pathData="M16,8 L104,8 C108.4,8 112,11.6 112,16 L112,104 C112,108.4 108.4,112 104,112 L16,112 C11.6,112 8,108.4 8,104 L8,16 C8,11.6 11.6,8 16,8Z" />
+    <!-- h -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M38,35 L38,85 L48,85 L48,65 L62,65 L62,85 L72,85 L72,35 L62,35 L62,55 L48,55 L48,35 Z" />
+        android:pathData="M22,40 L22,80 L30,80 L30,62 C30,57 33,55 37,55 L37,80 L45,80 L45,52 C45,47 40,44 35,44 C32,44 30,45 30,45 L30,40Z" />
+    <!-- u -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M48,52 L48,72 C48,77 52,80 57,80 L64,80 L64,72 L59,72 C56,72 56,70 56,68 L56,52Z" />
+    <!-- l -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M68,40 L68,80 L76,80 L76,40Z" />
+    <!-- u -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M80,52 L80,72 C80,77 84,80 89,80 L98,80 L98,72 L91,72 C88,72 88,70 88,68 L88,52Z" />
 </vector>

@@ -8,6 +8,8 @@ import android.util.Log
 import androidx.annotation.OptIn
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
@@ -33,6 +35,11 @@ class PlayerActivity : FragmentActivity() {
     private lateinit var playerView: PlayerView
     private var videoUrl: String? = null
     private var isVodPage: Boolean = false
+
+    // ── HTTP HEADER SUPPORT ────────────────────────────────────
+    private var httpReferrer: String? = null
+    private var httpUserAgent: String? = null
+    private var daiEventId: String? = null
 
     // ── FALLBACK STATE ──────────────────────────────────────────
     private var fallbackUrls: List<String> = emptyList()
@@ -91,6 +98,11 @@ class PlayerActivity : FragmentActivity() {
             videoUrl = intent.getStringExtra("VIDEO_URL")
             isVodPage = intent.getBooleanExtra("IS_VOD_PAGE", false)
 
+            // Load HTTP headers for CDNs that require Referer/UA
+            httpReferrer = intent.getStringExtra("HTTP_REFERRER")
+            httpUserAgent = intent.getStringExtra("HTTP_USER_AGENT")
+            daiEventId = intent.getStringExtra("DAI_EVENT_ID")
+
             // Load fallback URLs if provided
             val extras = intent.getStringArrayExtra("FALLBACK_URLS")
             if (extras != null) {
@@ -107,7 +119,10 @@ class PlayerActivity : FragmentActivity() {
             Log.d(TAG, "Primary URL: $videoUrl | Fallbacks: ${fallbackUrls.size}")
             com.epicgera.vtrae.ui.components.VtrToastManager.showInfo(getString(R.string.msg_loading_url, videoUrl))
 
-            if (isVodPage) {
+            if (daiEventId != null) {
+                // Google DAI session-based stream (e.g. América TV)
+                resolveDaiStream(daiEventId!!)
+            } else if (isVodPage) {
                 resolveVodStream(videoUrl!!)
             } else {
                 initializePlayer(videoUrl!!)
@@ -144,6 +159,70 @@ class PlayerActivity : FragmentActivity() {
         }
     }
 
+    private var httpCookie: String? = null
+
+    /**
+     * Resolves a Google DAI (Dynamic Ad Insertion) stream by creating a session.
+     * Used for channels like América TV that use Google SSAI infrastructure.
+     * POST to pubads.g.doubleclick.net/ssai/event/{eventId}/streams
+     * Response JSON contains "stream_manifest" with the session-specific HLS URL.
+     */
+    private fun resolveDaiStream(eventId: String) {
+        com.epicgera.vtrae.ui.components.VtrToastManager.showInfo("Conectando con América TV...")
+        lifecycleScope.launch {
+            try {
+                val manifestUrl = withContext(Dispatchers.IO) {
+                    val url = java.net.URL("https://pubads.g.doubleclick.net/ssai/event/$eventId/streams")
+                    val conn = url.openConnection() as java.net.HttpURLConnection
+                    conn.requestMethod = "POST"
+                    conn.setRequestProperty("Content-Length", "0")
+                    
+                    // Critical: Use the exact same User-Agent for both the POST and ExoPlayer
+                    val defaultUa = "Mozilla/5.0 (Linux; Android 12) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36"
+                    httpUserAgent = defaultUa
+                    conn.setRequestProperty("User-Agent", defaultUa)
+                    
+                    conn.connectTimeout = 10000
+                    conn.readTimeout = 10000
+                    conn.doOutput = true
+                    conn.outputStream.close() // Send empty body
+
+                    val responseCode = conn.responseCode
+                    if (responseCode == 201 || responseCode == 200) {
+                        // Capture any session cookies that Google might require
+                        val cookiesHeader = conn.headerFields["Set-Cookie"]
+                        if (cookiesHeader != null) {
+                            httpCookie = cookiesHeader.joinToString("; ")
+                            Log.d(TAG, "DAI session cookies: $httpCookie")
+                        }
+
+                        val responseBody = conn.inputStream.bufferedReader().readText()
+                        val json = org.json.JSONObject(responseBody)
+                        val manifest = json.optString("stream_manifest", "")
+                        Log.d(TAG, "DAI session created: $manifest")
+                        manifest.ifEmpty { null }
+                    } else {
+                        Log.e(TAG, "DAI session creation failed: HTTP $responseCode")
+                        null
+                    }
+                }
+
+                if (manifestUrl != null) {
+                    Log.d(TAG, "Playing DAI stream: $manifestUrl")
+                    com.epicgera.vtrae.ui.components.VtrToastManager.showInfo("Stream listo ▶")
+                    initializePlayer(manifestUrl)
+                } else {
+                    com.epicgera.vtrae.ui.components.VtrToastManager.showError("No se pudo conectar con América TV")
+                    Handler(Looper.getMainLooper()).postDelayed({ if (!isFinishing) finish() }, 3500)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "DAI resolution error", e)
+                com.epicgera.vtrae.ui.components.VtrToastManager.showError("Error: ${e.message}")
+                Handler(Looper.getMainLooper()).postDelayed({ if (!isFinishing) finish() }, 3500)
+            }
+        }
+    }
+
     @OptIn(UnstableApi::class)
     private fun initializePlayer(url: String) {
         try {
@@ -153,8 +232,18 @@ class PlayerActivity : FragmentActivity() {
             // Many IPTV providers block standard Chrome/Browser User-Agents (403 Forbidden).
             // Using a common player UA (or just "ExoPlayer") usually works best for Live TV.
             val dataSourceFactory = DefaultHttpDataSource.Factory()
-                .setUserAgent("ExoPlayer")
+                .setUserAgent(httpUserAgent ?: "ExoPlayer")
                 .setAllowCrossProtocolRedirects(true)
+
+            // Inject custom HTTP headers (e.g., Referer, Cookies)
+            val headers = mutableMapOf<String, String>()
+            httpReferrer?.let { headers["Referer"] = it }
+            httpCookie?.let { headers["Cookie"] = it }
+            
+            if (headers.isNotEmpty()) {
+                dataSourceFactory.setDefaultRequestProperties(headers)
+                Log.d(TAG, "Injecting custom headers: ${headers.keys}")
+            }
             
             val mediaSourceFactory = DefaultMediaSourceFactory(dataSourceFactory)
 

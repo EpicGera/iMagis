@@ -1,13 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Disney+: deep blue background with white Disney-style D+ -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="120dp"
     android:height="120dp"
     android:viewportWidth="120"
     android:viewportHeight="120">
+    <!-- Blue background -->
     <path
         android:fillColor="#113CCF"
-        android:pathData="M60,10 C87.6,10 110,32.4 110,60 C110,87.6 87.6,110 60,110 C32.4,110 10,87.6 10,60 C10,32.4 32.4,10 60,10Z" />
+        android:pathData="M16,8 L104,8 C108.4,8 112,11.6 112,16 L112,104 C112,108.4 108.4,112 104,112 L16,112 C11.6,112 8,108.4 8,104 L8,16 C8,11.6 11.6,8 16,8Z" />
+    <!-- Stylized D -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M40,35 L40,85 L55,85 C70,85 80,75 80,60 C80,45 70,35 55,35 Z M50,45 L55,45 C63,45 70,50 70,60 C70,70 63,75 55,75 L50,75 Z" />
+        android:pathData="M26,30 L26,90 L50,90 C72,90 85,76 85,60 C85,44 72,30 50,30 Z M36,40 L48,40 C64,40 74,48 74,60 C74,72 64,80 48,80 L36,80 Z" />
+    <!-- Plus sign -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M92,52 L92,44 L97,44 L97,52 L105,52 L105,57 L97,57 L97,65 L92,65 L92,57 L84,57 L84,52Z" />
+    <!-- Stars sparkle dots -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M88,28 A2,2 0 1,1 88,28.001Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M98,35 A1.5,1.5 0 1,1 98,35.001Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M82,38 A1,1 0 1,1 82,38.001Z" />
 </vector>

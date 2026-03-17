@@ -1,5 +1,6 @@
 package com.epicgera.vtrae.api
 
+import com.epicgera.vtrae.R
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.GET
@@ -11,18 +12,19 @@ import java.io.Serializable
 enum class StreamingPlatform(
     val providerId: Int,
     val displayName: String,
-    val emoji: String
+    val emoji: String,
+    val iconRes: Int
 ) {
-    NETFLIX(8, "Netflix", "\uD83D\uDD34"),
-    AMAZON_PRIME(9, "Amazon Prime", "\uD83D\uDD35"),
-    HULU(15, "Hulu", "\uD83D\udfe2"),
-    APPLE_TV_PLUS(350, "Apple TV+", "\u26aa"),
-    DISNEY_PLUS(337, "Disney+", "\uD83D\uDFE3"),
-    MAX(1899, "Max", "\uD83D\uDFE1"),
-    PARAMOUNT_PLUS(531, "Paramount+", "\uD83D\uDD35"),
-    PEACOCK(386, "Peacock", "\uD83D\uDFE0"),
-    CRUNCHYROLL(283, "Crunchyroll", "\uD83D\uDFE0"),
-    STARZ(43, "Starz", "\u26AB");
+    NETFLIX(8, "Netflix", "\uD83D\uDD34", R.drawable.ic_netflix),
+    AMAZON_PRIME(9, "Amazon Prime", "\uD83D\uDD35", R.drawable.ic_prime),
+    HULU(15, "Hulu", "\uD83D\udfe2", R.drawable.ic_hulu),
+    APPLE_TV_PLUS(350, "Apple TV+", "\u26aa", R.drawable.ic_appletv),
+    DISNEY_PLUS(337, "Disney+", "\uD83D\uDFE3", R.drawable.ic_disneyplus),
+    MAX(1899, "Max", "\uD83D\uDFE1", R.drawable.ic_max),
+    PARAMOUNT_PLUS(531, "Paramount+", "\uD83D\uDD35", R.drawable.ic_paramount),
+    PEACOCK(386, "Peacock", "\uD83D\uDFE0", R.drawable.ic_peacock),
+    CRUNCHYROLL(283, "Crunchyroll", "\uD83D\uDFE0", R.drawable.ic_crunchyroll),
+    STARZ(43, "Starz", "\u26AB", R.drawable.ic_starz);
 }
 
 // --- Data Models ---

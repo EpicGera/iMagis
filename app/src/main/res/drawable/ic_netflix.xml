@@ -1,16 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Netflix-style red circle icon -->
+<!-- Netflix brand-style icon: dark rounded rect with red "N" ribbon -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="120dp"
     android:height="120dp"
     android:viewportWidth="120"
     android:viewportHeight="120">
-    <!-- Red circle background -->
+    <!-- Dark background rounded rect -->
+    <path
+        android:fillColor="#141414"
+        android:pathData="M16,8 L104,8 C108.4,8 112,11.6 112,16 L112,104 C112,108.4 108.4,112 104,112 L16,112 C11.6,112 8,108.4 8,104 L8,16 C8,11.6 11.6,8 16,8Z" />
+    <!-- Red ribbon left -->
     <path
         android:fillColor="#E50914"
-        android:pathData="M60,10 C87.6,10 110,32.4 110,60 C110,87.6 87.6,110 60,110 C32.4,110 10,87.6 10,60 C10,32.4 32.4,10 60,10Z" />
-    <!-- Letter N -->
+        android:pathData="M36,28 L36,92 L46,92 L46,28Z" />
+    <!-- Red ribbon right -->
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M38,35 L38,85 L48,85 L48,55 L62,85 L72,85 L72,35 L62,35 L62,65 L48,35 Z" />
+        android:fillColor="#E50914"
+        android:pathData="M74,28 L74,92 L84,92 L84,28Z" />
+    <!-- Red ribbon diagonal -->
+    <path
+        android:fillColor="#E50914"
+        android:pathData="M36,28 L46,28 L84,92 L74,92Z" />
+    <!-- Shadow on left ribbon to imply depth -->
+    <path
+        android:fillColor="#B20710"
+        android:pathData="M36,64 L46,64 L46,92 L36,92Z" />
 </vector>

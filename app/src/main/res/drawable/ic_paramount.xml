@@ -1,13 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Paramount+: blue background with mountain peak and plus -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="120dp"
     android:height="120dp"
     android:viewportWidth="120"
     android:viewportHeight="120">
+    <!-- Blue background -->
     <path
         android:fillColor="#0064FF"
-        android:pathData="M60,10 C87.6,10 110,32.4 110,60 C110,87.6 87.6,110 60,110 C32.4,110 10,87.6 10,60 C10,32.4 32.4,10 60,10Z" />
+        android:pathData="M16,8 L104,8 C108.4,8 112,11.6 112,16 L112,104 C112,108.4 108.4,112 104,112 L16,112 C11.6,112 8,108.4 8,104 L8,16 C8,11.6 11.6,8 16,8Z" />
+    <!-- Mountain peak -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M42,35 L42,85 L52,85 L52,65 L65,65 C73,65 78,58 78,50 C78,42 73,35 65,35 Z M52,45 L63,45 C66,45 68,47 68,50 C68,53 66,55 63,55 L52,55 Z" />
+        android:pathData="M60,22 L90,78 L78,78 L60,46 L42,78 L30,78Z" />
+    <!-- Mountain notch (inner triangle) -->
+    <path
+        android:fillColor="#0064FF"
+        android:pathData="M60,42 L72,66 L48,66Z" />
+    <!-- Second mountain -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M60,52 L75,78 L45,78Z" />
+    <!-- Stars above mountain -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M60,16 A1.5,1.5 0 1,1 60.01,16Z" />
+    <!-- Plus sign bottom-right -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M90,86 L90,82 L94,82 L94,86 L98,86 L98,90 L94,90 L94,94 L90,94 L90,90 L86,90 L86,86Z" />
 </vector>

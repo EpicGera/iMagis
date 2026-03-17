@@ -1,13 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Starz: dark background with gold star and white "STARZ" -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="120dp"
     android:height="120dp"
     android:viewportWidth="120"
     android:viewportHeight="120">
+    <!-- Dark background -->
     <path
-        android:fillColor="#1A1A1A"
-        android:pathData="M60,10 C87.6,10 110,32.4 110,60 C110,87.6 87.6,110 60,110 C32.4,110 10,87.6 10,60 C10,32.4 32.4,10 60,10Z" />
+        android:fillColor="#0F0F0F"
+        android:pathData="M16,8 L104,8 C108.4,8 112,11.6 112,16 L112,104 C112,108.4 108.4,112 104,112 L16,112 C11.6,112 8,108.4 8,104 L8,16 C8,11.6 11.6,8 16,8Z" />
+    <!-- Gold 5-pointed star -->
     <path
-        android:fillColor="#FFD700"
-        android:pathData="M40,55 L48,35 L60,60 L72,35 L80,55 L80,85 L70,85 L70,65 L60,85 L50,65 L50,85 L40,85 Z" />
+        android:fillColor="#DAA520"
+        android:pathData="M60,18 L67,40 L90,40 L72,54 L78,76 L60,62 L42,76 L48,54 L30,40 L53,40Z" />
+    <!-- "STARZ" thin text below -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M28,84 C28,81 31,80 34,80 C37,80 39,81 39,83 C39,85 28,86 28,90 C28,93 31,94 35,94 C38,94 41,93 41,90 L38,90 C38,92 37,92 35,92 C32,92 31,91 31,90 C31,87 41,86 41,83 C41,80 38,78 34,78 C30,78 25,80 25,84Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M44,80 L44,82 L49,82 L49,94 L52,94 L52,82 L57,82 L57,80Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M60,94 L63,86 L65,86 L68,94 L71,94 L66,80 L62,80 L57,94Z M63.5,84 L64.5,84 L66,88 L62,88Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M73,80 L73,94 L76,94 L76,88 L80,88 C83,88 85,87 85,84 C85,81 83,80 80,80 Z M76,82 L79,82 C81,82 82,83 82,84.5 C82,86 81,86.5 79,86.5 L76,86.5 Z M81,88 L86,94 L83,94 L78,88" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M87,80 L87,82 L95,92 L87,92 L87,94 L99,94 L99,92 L91,82 L98,82 L98,80Z" />
 </vector>

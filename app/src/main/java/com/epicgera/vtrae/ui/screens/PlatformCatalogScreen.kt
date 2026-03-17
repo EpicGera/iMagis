@@ -1,15 +1,19 @@
 package com.epicgera.vtrae.ui.screens
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -26,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -49,7 +54,7 @@ import com.epicgera.vtrae.ui.theme.FlixWhite
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-// Platform brand colors for the selector buttons
+// ── Platform brand colors ──────────────────────────────────
 private val platformColors = mapOf(
     StreamingPlatform.NETFLIX to Color(0xFFE50914),
     StreamingPlatform.AMAZON_PRIME to Color(0xFF00A8E1),
@@ -63,6 +68,35 @@ private val platformColors = mapOf(
     StreamingPlatform.STARZ to Color(0xFF1A1A1A),
 )
 
+// ── Content type filter ────────────────────────────────────
+private enum class ContentType(val label: String) {
+    ALL("All"),
+    MOVIES("Movies"),
+    SERIES("Series"),
+}
+
+// ── Genre filter (TMDB IDs for both Movie & TV) ────────────
+private data class GenreFilter(val label: String, val movieIds: List<Int>, val tvIds: List<Int>)
+
+private val genreFilters = listOf(
+    GenreFilter("All", emptyList(), emptyList()),
+    GenreFilter("Action", listOf(28), listOf(10759)),
+    GenreFilter("Comedy", listOf(35), listOf(35)),
+    GenreFilter("Drama", listOf(18), listOf(18)),
+    GenreFilter("Horror", listOf(27), listOf()),
+    GenreFilter("Sci-Fi", listOf(878), listOf(10765)),
+    GenreFilter("Thriller", listOf(53), listOf()),
+    GenreFilter("Romance", listOf(10749), listOf()),
+    GenreFilter("Animation", listOf(16), listOf(16)),
+    GenreFilter("Documentary", listOf(99), listOf(99)),
+    GenreFilter("Crime", listOf(80), listOf(80)),
+    GenreFilter("Mystery", listOf(9648), listOf(9648)),
+    GenreFilter("Fantasy", listOf(14), listOf(10765)),
+    GenreFilter("Family", listOf(10751), listOf(10751)),
+)
+
+// ── MAIN SCREEN ────────────────────────────────────────────
+
 @Composable
 fun PlatformCatalogScreen(
     onMovieClick: (Movie) -> Unit = {},
@@ -71,48 +105,79 @@ fun PlatformCatalogScreen(
     var movies by remember { mutableStateOf<List<Movie>>(emptyList()) }
     var series by remember { mutableStateOf<List<Movie>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
-    
+
     var currentPage by remember { mutableIntStateOf(1) }
     var isFetchingNextPage by remember { mutableStateOf(false) }
     val gridState = rememberTvLazyGridState()
 
-    // Fetch initial content when platform changes
+    // Filter states (no search — Fire TV has no keyboard)
+    var selectedType by remember { mutableStateOf(ContentType.ALL) }
+    var selectedGenre by remember { mutableStateOf(genreFilters.first()) }
+
+    // Fetch initial 5 pages (~200 titles) when platform changes
     LaunchedEffect(selectedPlatform) {
         isLoading = true
-        currentPage = 1
+        currentPage = 5
         movies = emptyList()
         series = emptyList()
+        selectedType = ContentType.ALL
+        selectedGenre = genreFilters.first()
 
         withContext(Dispatchers.IO) {
             val api = TmdbApiClient.service
             val key = TmdbApiClient.API_KEY
             val providerId = selectedPlatform.providerId.toString()
+            val movieResults = mutableListOf<Movie>()
+            val seriesResults = mutableListOf<Movie>()
 
-            try {
-                val movieResponse = api.discoverMovies(
-                    apiKey = key,
-                    watchProviders = providerId,
-                    watchRegion = "US",
-                    page = currentPage
-                )
-                movies = movieResponse.results
-            } catch (e: Exception) {
-                e.printStackTrace()
+            for (pg in 1..5) {
+                try {
+                    val movieResponse = api.discoverMovies(
+                        apiKey = key,
+                        watchProviders = providerId,
+                        watchRegion = "US",
+                        page = pg
+                    )
+                    movieResults.addAll(movieResponse.results)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+
+                try {
+                    val tvResponse = api.discoverTv(
+                        apiKey = key,
+                        watchProviders = providerId,
+                        watchRegion = "US",
+                        page = pg
+                    )
+                    seriesResults.addAll(tvResponse.results)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
             }
 
-            try {
-                val tvResponse = api.discoverTv(
-                    apiKey = key,
-                    watchProviders = providerId,
-                    watchRegion = "US",
-                    page = currentPage
-                )
-                series = tvResponse.results
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-
+            movies = movieResults
+            series = seriesResults
             isLoading = false
+        }
+    }
+
+    // ── Derived filtered content ────────────────────────────
+    val filteredContent by remember(movies, series, selectedType, selectedGenre) {
+        derivedStateOf {
+            val pool: List<Movie> = when (selectedType) {
+                ContentType.ALL -> movies + series
+                ContentType.MOVIES -> movies
+                ContentType.SERIES -> series
+            }
+
+            if (selectedGenre.label == "All") pool
+            else {
+                val allGenreIds = (selectedGenre.movieIds + selectedGenre.tvIds).toSet()
+                pool.filter { movie ->
+                    movie.genre_ids?.any { it in allGenreIds } == true
+                }
+            }
         }
     }
 
@@ -120,8 +185,7 @@ fun PlatformCatalogScreen(
     val isScrolledToEnd by remember {
         derivedStateOf {
             val lastVisibleIndex = gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
-            val totalItems = movies.size + series.size
-            // Trigger fetch when 6 items away from end of current list
+            val totalItems = filteredContent.size
             lastVisibleIndex != null && lastVisibleIndex >= totalItems - 6
         }
     }
@@ -164,33 +228,39 @@ fun PlatformCatalogScreen(
         }
     }
 
+    // ── UI LAYOUT ───────────────────────────────────────────
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(top = 16.dp)
+            .padding(top = 8.dp)
     ) {
-        // ── HEADER ─────────────────────────────────────────────
-        Text(
-            text = "Browse by Platform",
-            fontFamily = FontFamily.SansSerif,
-            fontWeight = FontWeight.Bold,
-            fontSize = 28.sp,
-            color = FlixWhite,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(bottom = 16.dp, start = 32.dp)
-        )
-
-        // ── PLATFORM SELECTOR ROW ──────────────────────────────
-        TvLazyRow(
-            contentPadding = PaddingValues(start = 32.dp, end = 32.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        // ── PLATFORM SELECTOR ROW (compact, with inline title) ─
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 24.dp)
+                .padding(start = 24.dp, end = 24.dp, bottom = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "Platform",
+                fontFamily = FontFamily.SansSerif,
+                fontWeight = FontWeight.Bold,
+                fontSize = 20.sp,
+                color = FlixWhite,
+                maxLines = 1,
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+        }
+
+        TvLazyRow(
+            contentPadding = PaddingValues(start = 24.dp, end = 24.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 6.dp)
         ) {
             items(StreamingPlatform.entries.toList()) { platform ->
-                PlatformButton(
+                PlatformChip(
                     platform = platform,
                     isSelected = platform == selectedPlatform,
                     onClick = { selectedPlatform = platform }
@@ -198,53 +268,81 @@ fun PlatformCatalogScreen(
             }
         }
 
-        // ── CURRENT PLATFORM LABEL ─────────────────────────────
-        Text(
-            text = selectedPlatform.displayName,
-            fontFamily = FontFamily.SansSerif,
-            fontWeight = FontWeight.Bold,
-            fontSize = 22.sp,
-            color = platformColors[selectedPlatform] ?: FlixWhite,
-            modifier = Modifier.padding(bottom = 16.dp, start = 32.dp)
-        )
+        // ── COMBINED FILTER ROW: type + divider + genre ─────
+        TvLazyRow(
+            contentPadding = PaddingValues(start = 24.dp, end = 24.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 8.dp),
+        ) {
+            // Type chips
+            items(ContentType.entries.toList()) { type ->
+                FilterChip(
+                    label = type.label,
+                    isSelected = type == selectedType,
+                    accentColor = platformColors[selectedPlatform] ?: FlixWhite,
+                    onClick = { selectedType = type },
+                )
+            }
 
-        // ── CONTENT GRID ───────────────────────────────────────
+            // Visual divider
+            item {
+                Box(
+                    modifier = Modifier
+                        .width(1.dp)
+                        .height(28.dp)
+                        .background(FlixWhite.copy(alpha = 0.15f))
+                )
+            }
+
+            // Genre chips
+            items(genreFilters) { genre ->
+                FilterChip(
+                    label = genre.label,
+                    isSelected = genre == selectedGenre,
+                    accentColor = platformColors[selectedPlatform] ?: FlixWhite,
+                    onClick = { selectedGenre = genre },
+                )
+            }
+        }
+
+        // ── CONTENT GRID ─────────────────────────────────────
         Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
             when {
                 isLoading -> {
                     Text(
-                        text = "Loading...",
+                        text = "Loading…",
                         fontFamily = FontFamily.SansSerif,
                         fontWeight = FontWeight.Medium,
-                        fontSize = 20.sp,
+                        fontSize = 18.sp,
                         color = FlixWhite.copy(alpha = 0.6f),
                     )
                 }
-                movies.isEmpty() && series.isEmpty() -> {
+                filteredContent.isEmpty() -> {
                     Text(
                         text = "No content found",
                         fontFamily = FontFamily.SansSerif,
                         fontWeight = FontWeight.Medium,
-                        fontSize = 20.sp,
+                        fontSize = 18.sp,
                         color = FlixWhite.copy(alpha = 0.6f),
                     )
                 }
                 else -> {
-                    val allContent = movies + series
                     TvLazyVerticalGrid(
                         state = gridState,
-                        columns = TvGridCells.Adaptive(minSize = 160.dp),
+                        columns = TvGridCells.Fixed(6),
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(
-                            start = 32.dp,
-                            top = 8.dp,
-                            end = 32.dp,
-                            bottom = 32.dp,
+                            start = 24.dp,
+                            top = 4.dp,
+                            end = 24.dp,
+                            bottom = 24.dp,
                         ),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(24.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
-                        items(allContent, key = { "${it.id}_${it.title ?: it.name}" }) { movie ->
+                        items(filteredContent, key = { "${it.id}_${it.title ?: it.name}" }) { movie ->
                             PlatformPosterCard(
                                 movie = movie,
                                 onClick = { onMovieClick(movie) },
@@ -257,10 +355,46 @@ fun PlatformCatalogScreen(
     }
 }
 
-// ── PLATFORM SELECTOR BUTTON ───────────────────────────────
+// ── FILTER CHIP ────────────────────────────────────────────
 
 @Composable
-private fun PlatformButton(
+private fun FilterChip(
+    label: String,
+    isSelected: Boolean,
+    accentColor: Color,
+    onClick: () -> Unit,
+) {
+    val bgColor = if (isSelected) accentColor else FlixCardSurface
+    val txtColor = if (isSelected) {
+        if (accentColor == Color(0xFF1CE783) || accentColor == Color(0xFFFFC800) || accentColor == Color(0xFFF47521))
+            FlixBlack
+        else FlixWhite
+    } else FlixWhite.copy(alpha = 0.7f)
+
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(14.dp))
+            .background(bgColor)
+            .flixFocus()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 5.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = label,
+            fontFamily = FontFamily.SansSerif,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+            fontSize = 12.sp,
+            color = txtColor,
+            maxLines = 1,
+        )
+    }
+}
+
+// ── PLATFORM CHIP (compact — icon + short name) ────────────
+
+@Composable
+private fun PlatformChip(
     platform: StreamingPlatform,
     isSelected: Boolean,
     onClick: () -> Unit,
@@ -273,27 +407,36 @@ private fun PlatformButton(
         else FlixWhite
     } else FlixWhite
 
-    Box(
+    Row(
         modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(6.dp))
             .background(bgColor)
             .flixFocus()
-            .clickable { onClick() }
-            .padding(horizontal = 20.dp, vertical = 10.dp),
-        contentAlignment = Alignment.Center,
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
     ) {
+        Image(
+            painter = painterResource(id = platform.iconRes),
+            contentDescription = platform.displayName,
+            modifier = Modifier
+                .size(18.dp)
+                .clip(RoundedCornerShape(3.dp)),
+        )
+        Spacer(modifier = Modifier.width(6.dp))
         Text(
             text = platform.displayName,
             fontFamily = FontFamily.SansSerif,
             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-            fontSize = 15.sp,
+            fontSize = 13.sp,
             color = txtColor,
             maxLines = 1,
         )
     }
 }
 
-// ── POSTER CARD ────────────────────────────────────────────
+// ── POSTER CARD (compact — fills column width) ─────────────
 
 @Composable
 private fun PlatformPosterCard(
@@ -302,17 +445,17 @@ private fun PlatformPosterCard(
 ) {
     Column(
         modifier = Modifier
-            .width(160.dp)
-            .clip(RoundedCornerShape(8.dp))
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(6.dp))
             .background(FlixCardSurface)
             .flixFocus()
-            .clickable { onClick() },
+            .clickable(onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(240.dp)
+                .height(180.dp)
                 .background(FlixCardSurface),
         ) {
             AsyncImage(
@@ -326,16 +469,16 @@ private fun PlatformPosterCard(
             Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(8.dp)
-                    .background(FlixBlack.copy(alpha = 0.7f), RoundedCornerShape(4.dp))
-                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                    .padding(4.dp)
+                    .background(FlixBlack.copy(alpha = 0.7f), RoundedCornerShape(3.dp))
+                    .padding(horizontal = 4.dp, vertical = 1.dp)
             ) {
                 Text(
                     text = typeLabel,
                     color = FlixWhite,
                     fontFamily = FontFamily.SansSerif,
                     fontWeight = FontWeight.Medium,
-                    fontSize = 10.sp
+                    fontSize = 8.sp
                 )
             }
         }
@@ -344,14 +487,14 @@ private fun PlatformPosterCard(
             text = movie.displayTitle,
             fontFamily = FontFamily.SansSerif,
             fontWeight = FontWeight.Medium,
-            fontSize = 14.sp,
+            fontSize = 11.sp,
             color = FlixWhite,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 12.dp),
+                .padding(horizontal = 4.dp, vertical = 6.dp),
         )
     }
 }

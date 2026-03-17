@@ -1,13 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Max (HBO): deep purple background with bold white "max" -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="120dp"
     android:height="120dp"
     android:viewportWidth="120"
     android:viewportHeight="120">
+    <!-- Purple background -->
     <path
         android:fillColor="#5822B4"
-        android:pathData="M60,10 C87.6,10 110,32.4 110,60 C110,87.6 87.6,110 60,110 C32.4,110 10,87.6 10,60 C10,32.4 32.4,10 60,10Z" />
+        android:pathData="M16,8 L104,8 C108.4,8 112,11.6 112,16 L112,104 C112,108.4 108.4,112 104,112 L16,112 C11.6,112 8,108.4 8,104 L8,16 C8,11.6 11.6,8 16,8Z" />
+    <!-- Letter m -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M35,35 L35,85 L45,85 L45,65 L55,85 L65,85 L55,60 L65,35 L55,35 L45,55 L45,35 Z M70,35 L70,85 L80,85 L80,35 Z" />
+        android:pathData="M16,50 L16,80 L24,80 L24,58 L34,72 L44,58 L44,80 L52,80 L52,50 L44,50 L34,64 L24,50Z" />
+    <!-- Letter a -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M60,80 L68,50 L76,50 L84,80 L77,80 L75,73 L69,73 L67,80 Z M70,67 L74,67 L72,58Z" />
+    <!-- Letter x -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M86,50 L92,62 L86,80 L93,80 L97,70 L101,80 L108,80 L102,62 L108,50 L101,50 L97,58 L93,50Z" />
 </vector>

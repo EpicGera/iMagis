@@ -63,6 +63,11 @@ class IptvFragment : VerticalGridSupportFragment() {
                 val intent = android.content.Intent(requireContext(), PlayerActivity::class.java)
                 intent.putExtra("VIDEO_URL", item.streamUrl)
                 intent.putExtra("IS_VOD_PAGE", false)
+                // Pass HTTP headers for CDNs that require Referer/UA
+                item.referrer?.let { intent.putExtra("HTTP_REFERRER", it) }
+                item.userAgent?.let { intent.putExtra("HTTP_USER_AGENT", it) }
+                // Pass Google DAI event ID for session-based streams
+                item.daiEventId?.let { intent.putExtra("DAI_EVENT_ID", it) }
                 startActivity(intent)
             }
         }

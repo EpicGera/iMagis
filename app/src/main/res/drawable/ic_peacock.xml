@@ -1,13 +1,45 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Peacock: black background with colorful peacock tail feather fan -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="120dp"
     android:height="120dp"
     android:viewportWidth="120"
     android:viewportHeight="120">
+    <!-- Dark background -->
+    <path
+        android:fillColor="#0A0A0A"
+        android:pathData="M16,8 L104,8 C108.4,8 112,11.6 112,16 L112,104 C112,108.4 108.4,112 104,112 L16,112 C11.6,112 8,108.4 8,104 L8,16 C8,11.6 11.6,8 16,8Z" />
+    <!-- Peacock tail feathers (fan of colors) -->
+    <!-- Yellow -->
     <path
         android:fillColor="#FFC800"
-        android:pathData="M60,10 C87.6,10 110,32.4 110,60 C110,87.6 87.6,110 60,110 C32.4,110 10,87.6 10,60 C10,32.4 32.4,10 60,10Z" />
+        android:pathData="M60,70 L40,25 L50,22Z" />
+    <!-- Orange -->
     <path
-        android:fillColor="#000000"
-        android:pathData="M42,35 L42,85 L52,85 L52,65 L65,65 C73,65 78,58 78,50 C78,42 73,35 65,35 Z M52,45 L63,45 C66,45 68,47 68,50 C68,53 66,55 63,55 L52,55 Z" />
+        android:fillColor="#FF8C00"
+        android:pathData="M60,70 L50,22 L60,20Z" />
+    <!-- Red -->
+    <path
+        android:fillColor="#FF4444"
+        android:pathData="M60,70 L60,20 L70,22Z" />
+    <!-- Purple -->
+    <path
+        android:fillColor="#8844CC"
+        android:pathData="M60,70 L70,22 L80,25Z" />
+    <!-- Blue -->
+    <path
+        android:fillColor="#2196F3"
+        android:pathData="M60,70 L80,25 L88,32Z" />
+    <!-- Green -->
+    <path
+        android:fillColor="#4CAF50"
+        android:pathData="M60,70 L32,32 L40,25Z" />
+    <!-- Peacock head (white dot) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M58,72 A4,4 0 1,0 62,72 A4,4 0 1,0 58,72Z" />
+    <!-- "PEACOCK" text -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M28,88 L28,96 L32,96 L32,93 L35,93 C37,93 38,92 38,90.5 C38,89 37,88 35,88 Z M32,90 L34,90 C35,90 35.5,90.5 35.5,91 C35.5,91.5 35,92 34,92 L32,92 Z" />
 </vector>
