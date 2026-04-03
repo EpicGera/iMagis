@@ -96,6 +96,9 @@ dependencies {
     // P2P Streaming Magic (Stremio-like)
     implementation("com.github.se-bastiaan:TorrentStream-Android:master-SNAPSHOT")
 
+    // LibVLC — native codec support for MKV, AC3, EAC3, DTS, HEVC, etc.
+    implementation("org.videolan.android:libvlc-all:3.6.0")
+
     // ---------- COMPOSE FOR TV ----------
     // Compose BOM — single source of truth for Compose versions
     val composeBom = platform("androidx.compose:compose-bom:2024.02.02")

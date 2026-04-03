@@ -65,6 +65,12 @@
         <activity android:name=".ui.AnimeSeriesActivity" />
         <activity android:name=".ui.PlatformBrowseActivity" />
 
+        <activity
+            android:name=".ui.VlcPlayerActivity"
+            android:theme="@style/Theme.AppCompat.NoActionBar"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|uiMode"
+            android:launchMode="singleTop" />
+
         <!-- FileProvider for sharing torrent files with external players (VLC, MX Player) -->
         <provider
             android:name="androidx.core.content.FileProvider"

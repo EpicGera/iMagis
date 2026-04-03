@@ -320,7 +320,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleDriveVideoClick(video: DriveVideoFile) {
-        val intent = Intent(this, VideoPlayerActivity::class.java)
+        val intent = Intent(this, VlcPlayerActivity::class.java)
         intent.putExtra("VIDEO_URL", video.streamUrl)
         intent.putExtra("TITLE", video.displayTitle)
         startActivity(intent)
