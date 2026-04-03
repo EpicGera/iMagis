@@ -16,8 +16,15 @@ object ChannelStore {
         // ── NOSTALGIA / RETRO ────────────────────────────────────────
         IptvChannel(
             name = "Locomotion",
-            logoUrl = "https://upload.wikimedia.org/wikipedia/commons/thumb/c/ca/Locomotion_logo.svg/512px-Locomotion_logo.svg.png",
-            streamUrl = "http://51.222.85.85:81/hls/loco/index.m3u8",
+            logoUrl = "",
+            streamUrl = "serenotv://locomotion",
+            fallbackUrls = emptyList(),
+            group = "Animación"
+        ),
+        IptvChannel(
+            name = "Magic Kids",
+            logoUrl = "",
+            streamUrl = "https://kiiroilabs.ddns.net/magickids/stream/stream.m3u8",
             fallbackUrls = emptyList(),
             group = "Animación"
         ),
@@ -25,56 +32,63 @@ object ChannelStore {
         // ── NOTICIAS ─────────────────────────────────────────────────
         IptvChannel(
             name = "TN - Todo Noticias",
-            logoUrl = "https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/TN_logo.svg/512px-TN_logo.svg.png",
-            streamUrl = "http://190.104.226.30/Live/870787012c00961adaf9b2304d704b57/tn_720.m3u8",
-            fallbackUrls = listOf(
-                "https://media.neuquen.gov.ar/rtn/television/media.m3u8"
-            ),
-            group = "Noticias"
+            logoUrl = "",
+            streamUrl = "dai://5OEEtA9FR-yrvhNE5K8PQQ",
+            fallbackUrls = emptyList(),
+            group = "Noticias",
+            daiEventId = "5OEEtA9FR-yrvhNE5K8PQQ",
+            localLogoRes = "logo_tn"
         ),
         IptvChannel(
             name = "Canal 26",
-            logoUrl = "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cd/Canal_26_logo.png/512px-Canal_26_logo.png",
+            logoUrl = "",
             streamUrl = "https://stream-gtlc.telecentro.net.ar/hls/canal26hls/main.m3u8",
             fallbackUrls = emptyList(),
-            group = "Noticias"
+            group = "Noticias",
+            localLogoRes = "logo_canal26"
         ),
 
         // ── ENTRETENIMIENTO ──────────────────────────────────────────
         IptvChannel(
             name = "América TV",
-            logoUrl = "https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/America_TV_2020.svg/512px-America_TV_2020.svg.png",
-            streamUrl = "dai://OY2i_lL4SMyXE5Zaj4ULEg",  // Resolved at runtime via Google DAI
+            logoUrl = "",
+            streamUrl = "dai://OY2i_lL4SMyXE5Zaj4ULEg",
             fallbackUrls = emptyList(),
             group = "Entretenimiento",
-            daiEventId = "OY2i_lL4SMyXE5Zaj4ULEg"
+            daiEventId = "OY2i_lL4SMyXE5Zaj4ULEg",
+            localLogoRes = "logo_america"
         ),
         IptvChannel(
             name = "Telefe",
-            logoUrl = "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cc/Telefe_%28nuevo_logo%29.png/512px-Telefe_%28nuevo_logo%29.png",
-            streamUrl = "http://190.104.226.30/Live/870787012c00961adaf9b2304d704b57/telefe_720.m3u8",
+            logoUrl = "",
+            streamUrl = "https://telefeappmitelefe1.akamaized.net/hls/live/2037985/appmitelefe/TOK/master.m3u8",
             fallbackUrls = emptyList(),
-            group = "Entretenimiento"
+            group = "Entretenimiento",
+            referrer = "https://mitelefe.com/",
+            tokenizeUrl = "https://mitelefe.com/vidya/tokenize",
+            localLogoRes = "logo_telefe"
         ),
 
         IptvChannel(
             name = "Canal 9",
-            logoUrl = "https://upload.wikimedia.org/wikipedia/commons/thumb/0/05/Canal_9_logo.svg/512px-Canal_9_logo.svg.png",
+            logoUrl = "",
             streamUrl = "https://stream.arcast.live/ahora/ahora/playlist.m3u8",
             fallbackUrls = listOf(
                 "https://unlimited1-saopaulo.dps.live/televidaar/televidaar.smil/playlist.m3u8",
                 "http://coninfo.net:1935/9linklivert/smil:9linkmultibr.smil/playlist.m3u8"
             ),
-            group = "Entretenimiento"
+            group = "Entretenimiento",
+            localLogoRes = "logo_canal9"
         ),
 
         // ── DEPORTES ─────────────────────────────────────────────────
         IptvChannel(
             name = "TyC Sports",
-            logoUrl = "https://upload.wikimedia.org/wikipedia/commons/thumb/5/54/TyC_Sports_logo.svg/512px-TyC_Sports_logo.svg.png",
+            logoUrl = "",
             streamUrl = "https://live-04-11-tyc24.vodgc.net/tyc24/index_tyc24_1080.m3u8",
             fallbackUrls = emptyList(),
-            group = "Deportes"
+            group = "Deportes",
+            localLogoRes = "logo_tycsports"
         )
     )
 

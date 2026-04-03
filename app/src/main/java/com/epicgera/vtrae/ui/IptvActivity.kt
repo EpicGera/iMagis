@@ -65,21 +65,30 @@ class IptvActivity : ComponentActivity() {
                         overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
                     },
                     onChannelClick = { channel ->
-                        val intent = Intent(this, PlayerActivity::class.java).apply {
-                            putExtra("VIDEO_URL", channel.streamUrl)
-                            putExtra("IS_VOD_PAGE", false)
-                            // Pass fallback URLs for auto-retry
-                            if (channel.fallbackUrls.isNotEmpty()) {
-                                putExtra("FALLBACK_URLS", channel.fallbackUrls.toTypedArray())
+                        if (channel.streamUrl.startsWith("webview://")) {
+                            // WebView-based channel (e.g. Locomotion via serenotv)
+                            val webUrl = channel.streamUrl.removePrefix("webview://")
+                            val intent = Intent(this, WebViewActivity::class.java).apply {
+                                putExtra("VIDEO_URL", webUrl)
                             }
-                            // Pass HTTP headers for CDNs that require Referer/UA
-                            channel.referrer?.let { putExtra("HTTP_REFERRER", it) }
-                            channel.userAgent?.let { putExtra("HTTP_USER_AGENT", it) }
-                            // Pass Google DAI event ID for session-based streams
-                            channel.daiEventId?.let { putExtra("DAI_EVENT_ID", it) }
+                            startActivity(intent)
+                            overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
+                        } else {
+                            val intent = Intent(this, PlayerActivity::class.java).apply {
+                                putExtra("VIDEO_URL", channel.streamUrl)
+                                putExtra("IS_VOD_PAGE", false)
+                                if (channel.fallbackUrls.isNotEmpty()) {
+                                    putExtra("FALLBACK_URLS", channel.fallbackUrls.toTypedArray())
+                                }
+                                channel.referrer?.let { putExtra("HTTP_REFERRER", it) }
+                                channel.userAgent?.let { putExtra("HTTP_USER_AGENT", it) }
+                                channel.daiEventId?.let { putExtra("DAI_EVENT_ID", it) }
+                                channel.tokenizeUrl?.let { putExtra("TOKENIZE_URL", it) }
+                                channel.youtubeLiveId?.let { putExtra("YOUTUBE_LIVE_ID", it) }
+                            }
+                            startActivity(intent)
+                            overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
                         }
-                        startActivity(intent)
-                        overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
                     }
                 )
             }
@@ -246,7 +255,9 @@ class IptvActivity : ComponentActivity() {
                 // Preserve headers from any source
                 referrer = primary.referrer ?: group.mapNotNull { it.referrer }.firstOrNull(),
                 userAgent = primary.userAgent ?: group.mapNotNull { it.userAgent }.firstOrNull(),
-                daiEventId = primary.daiEventId ?: group.mapNotNull { it.daiEventId }.firstOrNull()
+                daiEventId = primary.daiEventId ?: group.mapNotNull { it.daiEventId }.firstOrNull(),
+                tokenizeUrl = primary.tokenizeUrl ?: group.mapNotNull { it.tokenizeUrl }.firstOrNull(),
+                youtubeLiveId = primary.youtubeLiveId ?: group.mapNotNull { it.youtubeLiveId }.firstOrNull()
             )
         }
     }

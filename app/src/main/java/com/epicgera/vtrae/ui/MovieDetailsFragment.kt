@@ -363,7 +363,7 @@ class MovieDetailsFragment : DetailsSupportFragment(), TorrentListener {
     // --- BUFFERING OVERLAY MANAGEMENT ---
 
     private var bufferingOverlay: View? = null
-    private var bufferingProgress: com.epicgera.vtrae.ui.components.AetherLoadingView? = null
+    private var bufferingProgress: android.widget.ProgressBar? = null
     private var bufferingPercent: TextView? = null
     private var bufferingPeers: TextView? = null
     private var bufferingSpeed: TextView? = null

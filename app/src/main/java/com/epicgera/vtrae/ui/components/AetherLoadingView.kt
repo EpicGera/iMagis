@@ -152,8 +152,8 @@ class AetherLoadingView @JvmOverloads constructor(
         val color: Int = if (Random.nextFloat() > 0.7f) {
             Color.WHITE
         } else {
-            // Cyan hues: #00E5FF to slightly deeper cyan
-            Color.parseColor(arrayOf("#00E5FF", "#18FFFF", "#84FFFF", "#00B8D4").random())
+            // Flix palette: warm cinematic hues matching the app theme
+            Color.parseColor(arrayOf("#E50914", "#E87C03", "#FFD700", "#FF4444").random())
         }
     }
 }

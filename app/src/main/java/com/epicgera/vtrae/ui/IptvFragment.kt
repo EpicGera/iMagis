@@ -39,8 +39,9 @@ class IptvFragment : VerticalGridSupportFragment() {
     }
 
     private fun setupFragment() {
-        val gridPresenter = VerticalGridPresenter()
-        gridPresenter.numberOfColumns = 4
+        val gridPresenter = VerticalGridPresenter(FocusHighlight.ZOOM_FACTOR_SMALL, false)
+        gridPresenter.numberOfColumns = 3
+        gridPresenter.shadowEnabled = false
         setGridPresenter(gridPresenter)
 
         // PresenterSelector to handle both Playlists and Channels
@@ -59,16 +60,24 @@ class IptvFragment : VerticalGridSupportFragment() {
                 intent.putExtra("PLAYLIST_NAME", item.name)
                 startActivity(intent)
             } else if (item is IptvChannel) {
-                // Play Channel
-                val intent = android.content.Intent(requireContext(), PlayerActivity::class.java)
-                intent.putExtra("VIDEO_URL", item.streamUrl)
-                intent.putExtra("IS_VOD_PAGE", false)
-                // Pass HTTP headers for CDNs that require Referer/UA
-                item.referrer?.let { intent.putExtra("HTTP_REFERRER", it) }
-                item.userAgent?.let { intent.putExtra("HTTP_USER_AGENT", it) }
-                // Pass Google DAI event ID for session-based streams
-                item.daiEventId?.let { intent.putExtra("DAI_EVENT_ID", it) }
-                startActivity(intent)
+                if (item.streamUrl.startsWith("webview://")) {
+                    // WebView-based channel (e.g. Locomotion via serenotv)
+                    val webUrl = item.streamUrl.removePrefix("webview://")
+                    val intent = android.content.Intent(requireContext(), WebViewActivity::class.java)
+                    intent.putExtra("VIDEO_URL", webUrl)
+                    startActivity(intent)
+                } else {
+                    // Native ExoPlayer channel
+                    val intent = android.content.Intent(requireContext(), PlayerActivity::class.java)
+                    intent.putExtra("VIDEO_URL", item.streamUrl)
+                    intent.putExtra("IS_VOD_PAGE", false)
+                    item.referrer?.let { intent.putExtra("HTTP_REFERRER", it) }
+                    item.userAgent?.let { intent.putExtra("HTTP_USER_AGENT", it) }
+                    item.daiEventId?.let { intent.putExtra("DAI_EVENT_ID", it) }
+                    item.tokenizeUrl?.let { intent.putExtra("TOKENIZE_URL", it) }
+                    item.youtubeLiveId?.let { intent.putExtra("YOUTUBE_LIVE_ID", it) }
+                    startActivity(intent)
+                }
             }
         }
     }
@@ -116,12 +125,14 @@ class IptvFragment : VerticalGridSupportFragment() {
         }
     }
 
-    // Presenter for Categories/Playlists
+    // Presenter for Categories/Playlists — Flix themed
     private inner class PlaylistPresenter : Presenter() {
         override fun onCreateViewHolder(parent: ViewGroup): ViewHolder {
             val cardView = ImageCardView(parent.context)
             cardView.isFocusable = true
             cardView.isFocusableInTouchMode = true
+            cardView.setBackgroundColor(android.graphics.Color.parseColor("#1A1A2E"))
+            cardView.setInfoAreaBackgroundColor(android.graphics.Color.parseColor("#16213E"))
             return ViewHolder(cardView)
         }
 
@@ -131,9 +142,8 @@ class IptvFragment : VerticalGridSupportFragment() {
             
             cardView.titleText = playlist.name
             cardView.contentText = playlist.description
-            cardView.setMainImageDimensions(300, 150) // Wider for categories
+            cardView.setMainImageDimensions(300, 150)
             cardView.mainImage = viewHolder.view.context.getDrawable(R.drawable.ic_tv_placeholder)
-            cardView.setBackgroundColor(android.graphics.Color.DKGRAY)
         }
 
         override fun onUnbindViewHolder(viewHolder: ViewHolder) {
@@ -143,12 +153,15 @@ class IptvFragment : VerticalGridSupportFragment() {
         }
     }
 
-    // Presenter for Channels
+    // Presenter for Channels — premium styled with local logos
     private inner class ChannelCardPresenter : Presenter() {
         override fun onCreateViewHolder(parent: ViewGroup): ViewHolder {
             val cardView = ImageCardView(parent.context)
             cardView.isFocusable = true
             cardView.isFocusableInTouchMode = true
+            // Flix-themed card styling
+            cardView.setBackgroundColor(android.graphics.Color.parseColor("#1A1A2E"))
+            cardView.setInfoAreaBackgroundColor(android.graphics.Color.parseColor("#16213E"))
             return ViewHolder(cardView)
         }
 
@@ -158,14 +171,35 @@ class IptvFragment : VerticalGridSupportFragment() {
             
             cardView.titleText = channel.name
             cardView.contentText = channel.group
-            cardView.setMainImageDimensions(200, 200) // Square logos
-            
-            com.bumptech.glide.Glide.with(viewHolder.view.context)
-                .load(channel.logoUrl)
-                .centerInside()
-                .placeholder(R.drawable.ic_tv_placeholder)
-                .error(R.drawable.ic_tv_placeholder)
-                .into(cardView.mainImageView)
+            cardView.setMainImageDimensions(200, 200)
+
+            val ctx = viewHolder.view.context
+
+            // Prefer local bundled logos for instant loading
+            if (!channel.localLogoRes.isNullOrEmpty()) {
+                val resId = ctx.resources.getIdentifier(
+                    channel.localLogoRes, "drawable", ctx.packageName
+                )
+                if (resId != 0) {
+                    com.bumptech.glide.Glide.with(ctx)
+                        .load(resId)
+                        .centerInside()
+                        .placeholder(R.drawable.ic_tv_placeholder)
+                        .into(cardView.mainImageView)
+                } else {
+                    cardView.mainImage = ctx.getDrawable(R.drawable.ic_tv_placeholder)
+                }
+            } else if (!channel.logoUrl.isNullOrEmpty()) {
+                // Fallback to remote URL
+                com.bumptech.glide.Glide.with(ctx)
+                    .load(channel.logoUrl)
+                    .centerInside()
+                    .placeholder(R.drawable.ic_tv_placeholder)
+                    .error(R.drawable.ic_tv_placeholder)
+                    .into(cardView.mainImageView)
+            } else {
+                cardView.mainImage = ctx.getDrawable(R.drawable.ic_tv_placeholder)
+            }
         }
 
         override fun onUnbindViewHolder(viewHolder: ViewHolder) {

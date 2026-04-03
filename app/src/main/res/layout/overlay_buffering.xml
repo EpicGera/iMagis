@@ -42,10 +42,13 @@
             android:layout_marginBottom="20dp" />
 
         <!-- Progress Bar -->
-        <com.epicgera.vtrae.ui.components.AetherLoadingView
+        <ProgressBar
             android:id="@+id/buffering_progress"
+            style="?android:attr/progressBarStyleHorizontal"
             android:layout_width="match_parent"
-            android:layout_height="32dp"
+            android:layout_height="8dp"
+            android:progressTint="#E50914"
+            android:progressBackgroundTint="#333333"
             android:layout_marginBottom="12dp" />
 
         <!-- Percentage + Peers row -->

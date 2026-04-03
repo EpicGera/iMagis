@@ -16,12 +16,13 @@ import com.epicgera.vtrae.R
 class WebViewActivity : FragmentActivity() {
 
     private lateinit var webView: WebView
-    private lateinit var loadingSpinner: com.epicgera.vtrae.ui.components.AetherLoadingView
+    private lateinit var loadingSpinner: android.widget.ProgressBar
 
     private var customView: View? = null
     private var customViewCallback: WebChromeClient.CustomViewCallback? = null
     private var originalSystemUiVisibility: Int = 0
     private var originalOrientation: Int = 0
+    private var isYouTubeLive: Boolean = false
 
     // ── Strict Auto-Hide Timeout Handling for WebView Controls ──
     private val hideTimeoutHandler = Handler(Looper.getMainLooper())
@@ -67,11 +68,20 @@ class WebViewActivity : FragmentActivity() {
             return
         }
 
+        // Detect YouTube TV mode from PlayerActivity
+        isYouTubeLive = intent.getBooleanExtra("IS_YOUTUBE_TV", false) ||
+            url.contains("youtube.com/watch") || url.contains("youtube.com/tv")
+
         setupWebView()
         webView.loadUrl(url)
         
-        // Start the auto-hide timer
-        resetHideTimeout()
+        if (isYouTubeLive) {
+            // Hide the control bar entirely for YouTube TV
+            val container = findViewById<View>(R.id.control_bar_container)
+            container?.visibility = View.GONE
+        } else {
+            resetHideTimeout()
+        }
     }
     
     private fun setupButtons() {
@@ -218,7 +228,12 @@ class WebViewActivity : FragmentActivity() {
         settings.domStorageEnabled = true
         settings.mediaPlaybackRequiresUserGesture = false
         settings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-        settings.userAgentString = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        settings.userAgentString = if (isYouTubeLive) {
+            // Smart TV User-Agent for YouTube TV interface
+            "Mozilla/5.0 (SMART-TV; Linux; Tizen 5.0) AppleWebKit/537.36 (KHTML, like Gecko) Version/5.0 TV Safari/537.36"
+        } else {
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        }
 
         // Improve video playback and focus support
         settings.loadWithOverviewMode = true
@@ -241,7 +256,20 @@ class WebViewActivity : FragmentActivity() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
                 loadingSpinner.visibility = View.GONE
-                injectCSS()
+                if (isYouTubeLive) {
+                    injectYouTubeLiveMode()
+                } else {
+                    injectCSS()
+                }
+            }
+
+            override fun shouldOverrideUrlLoading(view: WebView?, request: android.webkit.WebResourceRequest?): Boolean {
+                val reqUrl = request?.url?.toString() ?: return false
+                // Block navigation away from the video page in YouTube Live mode
+                if (isYouTubeLive && !reqUrl.contains("youtube.com/watch") && !reqUrl.contains("accounts.google") && !reqUrl.contains("consent.youtube")) {
+                    return true // Block
+                }
+                return false
             }
         }
         
@@ -378,6 +406,122 @@ class WebViewActivity : FragmentActivity() {
             })();
         """.trimIndent()
         webView.evaluateJavascript(jsRemoveBadControls, null)
+    }
+
+    /**
+     * Injects aggressive CSS/JS to transform YouTube into a clean TV player:
+     * - Hides ALL UI chrome (header, sidebar, comments, recommendations, end screens)
+     * - Makes the video player fill the entire viewport
+     * - Auto-skips ads and hides ad overlays
+     * - Auto-clicks play button
+     */
+    private fun injectYouTubeLiveMode() {
+        val ytCss = """
+            /* Hide EVERYTHING except the video player */
+            #header, #masthead, #masthead-container, ytd-masthead,
+            #related, #comments, #meta, #info, #owner,
+            #secondary, #secondary-inner, #below,
+            ytd-watch-next-secondary-results-renderer,
+            ytd-compact-video-renderer, ytd-watch-metadata,
+            ytd-merch-shelf-renderer, tp-yt-paper-dialog,
+            .ytp-chrome-top, .ytp-show-cards-title,
+            ytd-engagement-panel-section-list-renderer,
+            ytd-popup-container, #cinematics,
+            .ytd-watch-flexy #columns #secondary,
+            .ytd-watch-flexy #below,
+            #chips-wrapper, #chip-bar, ytd-feed-filter-chip-bar-renderer,
+            .ytm-autonav-bar, .watch-below-the-player,
+            .slim-video-information-renderer,
+            .related-chips-slot-wrapper, .reel-shelf-header,
+            ytm-related-video-list-renderer, ytm-comment-section-renderer,
+            .player-controls-top, c3-toast,
+            ytm-pivot-bar-renderer,
+            .ytm-autonav-toggle-button-container,
+            .single-column-watch-next-modern-panels,
+            .watch-below-the-player, ytm-item-section-renderer,
+            .slim-video-metadata-section, .compact-link-section,
+            .video-secondary-info-renderer,
+            ytm-engagement-panel-section-list-renderer {
+                display: none !important;
+            }
+
+            /* Make player fill entire screen */
+            html, body {
+                background: #000 !important;
+                overflow: hidden !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            .html5-video-player, video,
+            #player, #movie_player, .player-container,
+            ytm-app, ytm-mobile-topbar-renderer,
+            ytm-single-column-watch-next-results-renderer,
+            .ytm-watch, #player-container-id {
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+                width: 100vw !important;
+                height: 100vh !important;
+                z-index: 9999 !important;
+                background: #000 !important;
+            }
+
+            video {
+                object-fit: contain !important;
+                width: 100vw !important;
+                height: 100vh !important;
+            }
+
+            /* Hide ad overlays */
+            .ytp-ad-overlay-container, .ytp-ad-text-overlay,
+            .ad-showing .ytp-ad-player-overlay,
+            .ytp-ad-skip-button-slot, .ytp-ad-module,
+            .ytd-promoted-sparkles-web-renderer,
+            ytm-promoted-sparkles-web-renderer,
+            .ad-interrupting, .ad-showing {
+                display: none !important;
+            }
+        """.trimIndent()
+
+        // Inject CSS first
+        val cssEscaped = ytCss.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n")
+        val injectCssJs = "var s=document.createElement('style');s.innerHTML='$cssEscaped';document.head.appendChild(s);"
+        webView.evaluateJavascript(injectCssJs, null)
+
+        // Then inject the ad-skipper and auto-play logic
+        val ytJs = """
+            (function() {
+                // Auto-skip ads and auto-play loop
+                setInterval(function() {
+                    // Skip ad button
+                    var skipBtn = document.querySelector('.ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-skip-ad-button');
+                    if (skipBtn) skipBtn.click();
+
+                    // Close ad overlay
+                    var closeBtn = document.querySelector('.ytp-ad-overlay-close-button');
+                    if (closeBtn) closeBtn.click();
+
+                    // Dismiss popups (cookie consent, etc)
+                    var dismissBtn = document.querySelector('[aria-label="Dismiss"], .dismiss-button, tp-yt-paper-dialog #dismiss-button, .consent-bump-v2-lightbox .eom-buttons button');
+                    if (dismissBtn) dismissBtn.click();
+
+                    // Auto-play if paused
+                    var video = document.querySelector('video');
+                    if (video && video.paused && video.readyState >= 2) {
+                        video.play();
+                    }
+                }, 1000);
+
+                // Click fullscreen after a short delay
+                setTimeout(function() {
+                    var fsBtn = document.querySelector('.ytp-fullscreen-button, .fullscreen-icon');
+                    if (fsBtn) fsBtn.click();
+                }, 3000);
+            })();
+        """.trimIndent()
+
+        webView.evaluateJavascript(ytJs, null)
     }
 
     override fun onResume() {

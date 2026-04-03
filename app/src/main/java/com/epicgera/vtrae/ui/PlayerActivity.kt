@@ -40,6 +40,13 @@ class PlayerActivity : FragmentActivity() {
     private var httpReferrer: String? = null
     private var httpUserAgent: String? = null
     private var daiEventId: String? = null
+    private var tokenizeUrl: String? = null
+    private var youtubeLiveId: String? = null
+
+    // ── TOKENIZED STREAM AUTO-RENEWAL ──────────────────────────
+    private var baseStreamUrl: String? = null
+    private val tokenRefreshHandler = Handler(Looper.getMainLooper())
+    private val TOKEN_REFRESH_INTERVAL_MS = 90L * 60 * 1000 // 90 min (tokens last ~2hrs)
 
     // ── FALLBACK STATE ──────────────────────────────────────────
     private var fallbackUrls: List<String> = emptyList()
@@ -102,6 +109,8 @@ class PlayerActivity : FragmentActivity() {
             httpReferrer = intent.getStringExtra("HTTP_REFERRER")
             httpUserAgent = intent.getStringExtra("HTTP_USER_AGENT")
             daiEventId = intent.getStringExtra("DAI_EVENT_ID")
+            tokenizeUrl = intent.getStringExtra("TOKENIZE_URL")
+            youtubeLiveId = intent.getStringExtra("YOUTUBE_LIVE_ID")
 
             // Load fallback URLs if provided
             val extras = intent.getStringArrayExtra("FALLBACK_URLS")
@@ -120,8 +129,17 @@ class PlayerActivity : FragmentActivity() {
             com.epicgera.vtrae.ui.components.VtrToastManager.showInfo(getString(R.string.msg_loading_url, videoUrl))
 
             if (daiEventId != null) {
-                // Google DAI session-based stream (e.g. América TV)
+                // Google DAI session-based stream (e.g. América TV, TN)
                 resolveDaiStream(daiEventId!!)
+            } else if (tokenizeUrl != null) {
+                // Akamai tokenized stream (e.g. Telefe via mitelefe.com)
+                resolveTokenizedStream(videoUrl!!, tokenizeUrl!!)
+            } else if (youtubeLiveId != null) {
+                // YouTube Live stream (e.g. LN+)
+                resolveYouTubeLiveStream(youtubeLiveId!!)
+            } else if (videoUrl!!.startsWith("serenotv://")) {
+                // Serenotv playlist channel (e.g. Locomotion)
+                resolveSerenotvStream(videoUrl!!)
             } else if (isVodPage) {
                 resolveVodStream(videoUrl!!)
             } else {
@@ -160,6 +178,96 @@ class PlayerActivity : FragmentActivity() {
     }
 
     private var httpCookie: String? = null
+
+    // ── SERENOTV PLAYLIST RESOLVER ────────────────────────────────
+    // Fetches the video playlist JSON from serenotv's PHP backend,
+    // builds a shuffled ExoPlayer ConcatenatingMediaSource, and plays natively.
+    @OptIn(UnstableApi::class)
+    private fun resolveSerenotvStream(schemeUrl: String) {
+        val channelId = schemeUrl.removePrefix("serenotv://")
+        val apiUrl = when (channelId) {
+            "locomotion" -> "https://serenotv.com/playlist-locomotion3/get_videos.php?random=1"
+            else -> {
+                com.epicgera.vtrae.ui.components.VtrToastManager.showError("Unknown serenotv channel: $channelId")
+                finish()
+                return
+            }
+        }
+
+        com.epicgera.vtrae.ui.components.VtrToastManager.showInfo("📺 Loading Locomotion playlist...")
+
+        lifecycleScope.launch {
+            try {
+                val videos = withContext(Dispatchers.IO) {
+                    val url = java.net.URL(apiUrl)
+                    val conn = url.openConnection() as java.net.HttpURLConnection
+                    conn.connectTimeout = 15000
+                    conn.readTimeout = 15000
+                    conn.setRequestProperty("User-Agent", "Mozilla/5.0")
+                    val body = conn.inputStream.bufferedReader().use { it.readText() }
+                    conn.disconnect()
+
+                    val jsonObj = org.json.JSONObject(body)
+                    val arr = jsonObj.getJSONArray("videos")
+                    val list = mutableListOf<String>()
+                    for (i in 0 until arr.length()) {
+                        val videoUrl = arr.getJSONObject(i).getString("url")
+                        if (videoUrl.endsWith(".mp4")) {
+                            list.add(videoUrl)
+                        }
+                    }
+                    list.shuffled() // Randomize order for TV-like experience
+                }
+
+                if (videos.isEmpty()) {
+                    com.epicgera.vtrae.ui.components.VtrToastManager.showError("No videos found in playlist")
+                    finish()
+                    return@launch
+                }
+
+                Log.d(TAG, "Serenotv: Loaded ${videos.size} videos, building playlist")
+                com.epicgera.vtrae.ui.components.VtrToastManager.showInfo("🎬 ${videos.size} episodes loaded")
+
+                // Build ExoPlayer with playlist
+                val dataSourceFactory = DefaultHttpDataSource.Factory()
+                    .setUserAgent("Mozilla/5.0")
+
+                val mediaItems = videos.take(50).map { mp4Url ->
+                    MediaItem.fromUri(android.net.Uri.parse(mp4Url))
+                }
+
+                player = ExoPlayer.Builder(this@PlayerActivity)
+                    .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
+                    .build()
+                    .also { exo ->
+                        playerView.player = exo
+                        exo.setMediaItems(mediaItems)
+                        exo.repeatMode = Player.REPEAT_MODE_ALL
+                        exo.playWhenReady = true
+                        exo.prepare()
+
+                        exo.addListener(object : Player.Listener {
+                            override fun onPlayerError(error: PlaybackException) {
+                                Log.e(TAG, "Serenotv playback error: ${error.message}")
+                                // Skip to next video on error
+                                if (exo.hasNextMediaItem()) {
+                                    exo.seekToNextMediaItem()
+                                }
+                            }
+                            override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                                val idx = exo.currentMediaItemIndex + 1
+                                val total = exo.mediaItemCount
+                                Log.d(TAG, "Serenotv: Playing $idx/$total")
+                            }
+                        })
+                    }
+            } catch (e: Exception) {
+                Log.e(TAG, "Serenotv resolve failed: ${e.message}", e)
+                com.epicgera.vtrae.ui.components.VtrToastManager.showError("Failed to load: ${e.message}")
+                Handler(Looper.getMainLooper()).postDelayed({ if (!isFinishing) finish() }, 3500)
+            }
+        }
+    }
 
     /**
      * Resolves a Google DAI (Dynamic Ad Insertion) stream by creating a session.
@@ -221,6 +329,109 @@ class PlayerActivity : FragmentActivity() {
                 Handler(Looper.getMainLooper()).postDelayed({ if (!isFinishing) finish() }, 3500)
             }
         }
+    }
+
+    /**
+     * Resolves an Akamai-tokenized stream (e.g. Telefe).
+     * POSTs base URL to tokenization endpoint, receives tokenized HLS URL.
+     * Auto-schedules renewal every 90 minutes.
+     */
+    private fun resolveTokenizedStream(streamUrl: String, tokenEndpoint: String) {
+        baseStreamUrl = streamUrl
+        com.epicgera.vtrae.ui.components.VtrToastManager.showInfo("Conectando con Telefe...")
+        lifecycleScope.launch {
+            try {
+                val tokenizedUrl = fetchTokenizedUrl(streamUrl, tokenEndpoint)
+                if (tokenizedUrl != null) {
+                    Log.d(TAG, "Playing tokenized stream: $tokenizedUrl")
+                    httpReferrer = "https://mitelefe.com/"
+                    initializePlayer(tokenizedUrl)
+                    scheduleTokenRefresh()
+                } else {
+                    com.epicgera.vtrae.ui.components.VtrToastManager.showError("No se pudo conectar con Telefe")
+                    Handler(Looper.getMainLooper()).postDelayed({ if (!isFinishing) finish() }, 3500)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Tokenize resolution error", e)
+                com.epicgera.vtrae.ui.components.VtrToastManager.showError("Error: ${e.message}")
+                Handler(Looper.getMainLooper()).postDelayed({ if (!isFinishing) finish() }, 3500)
+            }
+        }
+    }
+
+    private suspend fun fetchTokenizedUrl(streamUrl: String, tokenEndpoint: String): String? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val url = java.net.URL(tokenEndpoint)
+                val conn = url.openConnection() as java.net.HttpURLConnection
+                conn.requestMethod = "POST"
+                conn.setRequestProperty("Content-Type", "application/json")
+                conn.setRequestProperty("Referer", "https://mitelefe.com/telefe-en-vivo")
+                conn.setRequestProperty("Origin", "https://mitelefe.com")
+                conn.setRequestProperty("User-Agent",
+                    "Mozilla/5.0 (Linux; Android 13; AFTSSS) AppleWebKit/537.36 Chrome/120.0.6099.230 Safari/537.36")
+                conn.connectTimeout = 10000
+                conn.readTimeout = 10000
+                conn.doOutput = true
+                val body = org.json.JSONObject().put("url", streamUrl).toString()
+                conn.outputStream.bufferedWriter().use { it.write(body) }
+                val responseCode = conn.responseCode
+                if (responseCode == 200) {
+                    val responseBody = conn.inputStream.bufferedReader().readText()
+                    val json = org.json.JSONObject(responseBody)
+                    json.optString("url", "").ifEmpty { null }
+                } else {
+                    Log.e(TAG, "Tokenize failed: HTTP $responseCode")
+                    null
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Token fetch error: ${e.message}")
+                null
+            }
+        }
+    }
+
+    private fun scheduleTokenRefresh() {
+        tokenRefreshHandler.removeCallbacksAndMessages(null)
+        tokenRefreshHandler.postDelayed({
+            val base = baseStreamUrl ?: return@postDelayed
+            val endpoint = tokenizeUrl ?: return@postDelayed
+            Log.d(TAG, "Auto-renewing Telefe token...")
+            lifecycleScope.launch {
+                try {
+                    val newUrl = fetchTokenizedUrl(base, endpoint)
+                    if (newUrl != null) {
+                        Log.d(TAG, "Token renewed. Swapping stream...")
+                        val mediaItem = MediaItem.Builder().setUri(newUrl)
+                            .setMimeType(androidx.media3.common.MimeTypes.APPLICATION_M3U8).build()
+                        player?.setMediaItem(mediaItem)
+                        player?.prepare()
+                        player?.playWhenReady = true
+                        scheduleTokenRefresh()
+                    } else {
+                        Log.w(TAG, "Token renewal failed. Retrying in 5 min...")
+                        tokenRefreshHandler.postDelayed({ scheduleTokenRefresh() }, 5 * 60 * 1000)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Token renewal error: ${e.message}")
+                    tokenRefreshHandler.postDelayed({ scheduleTokenRefresh() }, 5 * 60 * 1000)
+                }
+            }
+        }, TOKEN_REFRESH_INTERVAL_MS)
+    }
+
+    /**
+     * Launches YouTube Live stream via WebView using the YouTube TV interface.
+     * youtube.com/tv is designed for Smart TVs — fullscreen, clean, no mobile UI.
+     */
+    private fun resolveYouTubeLiveStream(videoId: String) {
+        Log.d(TAG, "Launching YouTube Live via TV interface: $videoId")
+        val tvUrl = "https://www.youtube.com/tv#/watch?v=$videoId"
+        val intent = android.content.Intent(this, WebViewActivity::class.java)
+        intent.putExtra("VIDEO_URL", tvUrl)
+        intent.putExtra("IS_YOUTUBE_TV", true)
+        startActivity(intent)
+        finish()
     }
 
     @OptIn(UnstableApi::class)
@@ -349,6 +560,7 @@ class PlayerActivity : FragmentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         hideTimeoutHandler.removeCallbacksAndMessages(null)
+        tokenRefreshHandler.removeCallbacksAndMessages(null)
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {

@@ -42,7 +42,10 @@ data class IptvChannel(
     val episode: Int? = null,
     val referrer: String? = null,
     val userAgent: String? = null,
-    val daiEventId: String? = null
+    val daiEventId: String? = null,
+    val tokenizeUrl: String? = null,      // For Akamai tokenized streams (e.g., Telefe)
+    val youtubeLiveId: String? = null,     // For YouTube Live streams (e.g., LN+)
+    val localLogoRes: String? = null       // Local drawable resource name for bundled logos
 )
 
 /**
