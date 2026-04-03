@@ -189,21 +189,45 @@ class VlcPlayerActivity : AppCompatActivity(), IVLCVout.Callback {
         lifecycleScope.launch {
             var srtFile: java.io.File? = null
 
-            // Strategy 1: Search by TMDB ID (if available)
-            val tmdbIdRaw = contentId?.toIntOrNull()
-            if (tmdbIdRaw != null) {
-                val type = contentType ?: "MOVIE"
-                val episodePair = SubtitleManager.parseEpisodeLabel(episodeLabel)
-                srtFile = SubtitleManager.fetchSpanishSubtitle(
-                    context = this@VlcPlayerActivity,
-                    tmdbId = tmdbIdRaw,
-                    contentType = type,
-                    seasonNumber = episodePair?.first,
-                    episodeNumber = episodePair?.second
-                )
+            // Strategy 0: Direct SRT from same Drive folder (highest priority)
+            val driveSubUrl = intent.getStringExtra("SUBTITLE_URL")
+            if (!driveSubUrl.isNullOrBlank()) {
+                srtFile = withContext(Dispatchers.IO) {
+                    try {
+                        val cacheDir = java.io.File(cacheDir, "subtitles")
+                        if (!cacheDir.exists()) cacheDir.mkdirs()
+                        val filename = intent.getStringExtra("FILENAME") ?: "cloud_sub"
+                        val baseName = filename.substringBeforeLast(".")
+                        val cachedSrt = java.io.File(cacheDir, "drive_${baseName}.srt")
+                        if (!cachedSrt.exists() || cachedSrt.length() == 0L) {
+                            val bytes = java.net.URL(driveSubUrl).readBytes()
+                            cachedSrt.writeBytes(bytes)
+                        }
+                        cachedSrt
+                    } catch (e: Exception) {
+                        android.util.Log.e("VlcPlayer", "Drive subtitle download failed", e)
+                        null
+                    }
+                }
             }
 
-            // Strategy 2: Fallback to filename-based search (Cloud/Drive files)
+            // Strategy 1: Search by TMDB ID (if available)
+            if (srtFile == null) {
+                val tmdbIdRaw = contentId?.toIntOrNull()
+                if (tmdbIdRaw != null) {
+                    val type = contentType ?: "MOVIE"
+                    val episodePair = SubtitleManager.parseEpisodeLabel(episodeLabel)
+                    srtFile = SubtitleManager.fetchSpanishSubtitle(
+                        context = this@VlcPlayerActivity,
+                        tmdbId = tmdbIdRaw,
+                        contentType = type,
+                        seasonNumber = episodePair?.first,
+                        episodeNumber = episodePair?.second
+                    )
+                }
+            }
+
+            // Strategy 2: Fallback to filename-based search (OpenSubtitles)
             if (srtFile == null) {
                 val filename = intent.getStringExtra("FILENAME") ?: videoTitle
                 if (!filename.isNullOrBlank()) {
@@ -224,7 +248,7 @@ class VlcPlayerActivity : AppCompatActivity(), IVLCVout.Callback {
                     )
                     android.widget.Toast.makeText(
                         this@VlcPlayerActivity,
-                        "🇪🇸 Subtítulos en español cargados",
+                        "🇪🇸 Subtítulos cargados",
                         android.widget.Toast.LENGTH_SHORT
                     ).show()
                 }
