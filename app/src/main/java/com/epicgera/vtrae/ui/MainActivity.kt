@@ -323,6 +323,7 @@ class MainActivity : ComponentActivity() {
         val intent = Intent(this, VlcPlayerActivity::class.java)
         intent.putExtra("VIDEO_URL", video.streamUrl)
         intent.putExtra("TITLE", video.displayTitle)
+        intent.putExtra("FILENAME", video.name)  // original filename for subtitle search
         startActivity(intent)
         overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
     }

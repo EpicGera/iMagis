@@ -71,6 +71,20 @@ interface OpenSubtitlesService {
     ): OsSearchResponse
 
     /**
+     * Search by free-text query (parsed from filename).
+     * Used when TMDB ID is not available (e.g. Cloud/Drive files).
+     */
+    @GET("subtitles")
+    suspend fun searchByQuery(
+        @Query("query") query: String,
+        @Query("languages") languages: String = "es",
+        @Query("season_number") seasonNumber: Int? = null,
+        @Query("episode_number") episodeNumber: Int? = null,
+        @Query("order_by") orderBy: String = "download_count",
+        @Query("order_direction") orderDirection: String = "desc"
+    ): OsSearchResponse
+
+    /**
      * Request a temporary download link for a subtitle file.
      * With anonymous consumer access, only the API-Key header is needed (injected by interceptor).
      */

@@ -186,31 +186,48 @@ class VlcPlayerActivity : AppCompatActivity(), IVLCVout.Callback {
     }
 
     private fun loadSpanishSubtitles() {
-        val tmdbIdRaw = contentId?.toIntOrNull() ?: return
-        val type = contentType ?: "MOVIE"
-        val episodePair = SubtitleManager.parseEpisodeLabel(episodeLabel)
-
         lifecycleScope.launch {
-            val srtFile = SubtitleManager.fetchSpanishSubtitle(
-                context = this@VlcPlayerActivity,
-                tmdbId = tmdbIdRaw,
-                contentType = type,
-                seasonNumber = episodePair?.first,
-                episodeNumber = episodePair?.second
-            ) ?: return@launch
+            var srtFile: java.io.File? = null
 
-            // Inject SRT into VLC via addSlave (type 1 = subtitle)
-            withContext(Dispatchers.Main) {
-                mediaPlayer?.addSlave(
-                    1,  // org.videolan.libvlc.MediaPlayer.Slave.Type.Subtitle
-                    Uri.fromFile(srtFile),
-                    true  // select immediately
+            // Strategy 1: Search by TMDB ID (if available)
+            val tmdbIdRaw = contentId?.toIntOrNull()
+            if (tmdbIdRaw != null) {
+                val type = contentType ?: "MOVIE"
+                val episodePair = SubtitleManager.parseEpisodeLabel(episodeLabel)
+                srtFile = SubtitleManager.fetchSpanishSubtitle(
+                    context = this@VlcPlayerActivity,
+                    tmdbId = tmdbIdRaw,
+                    contentType = type,
+                    seasonNumber = episodePair?.first,
+                    episodeNumber = episodePair?.second
                 )
-                android.widget.Toast.makeText(
-                    this@VlcPlayerActivity,
-                    "🇪🇸 Subtítulos en español cargados",
-                    android.widget.Toast.LENGTH_SHORT
-                ).show()
+            }
+
+            // Strategy 2: Fallback to filename-based search (Cloud/Drive files)
+            if (srtFile == null) {
+                val filename = intent.getStringExtra("FILENAME") ?: videoTitle
+                if (!filename.isNullOrBlank()) {
+                    srtFile = SubtitleManager.fetchSubtitleByFilename(
+                        context = this@VlcPlayerActivity,
+                        filename = filename
+                    )
+                }
+            }
+
+            // Inject SRT if found
+            if (srtFile != null) {
+                withContext(Dispatchers.Main) {
+                    mediaPlayer?.addSlave(
+                        1,  // subtitle type
+                        Uri.fromFile(srtFile),
+                        true  // select immediately
+                    )
+                    android.widget.Toast.makeText(
+                        this@VlcPlayerActivity,
+                        "🇪🇸 Subtítulos en español cargados",
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                }
             }
         }
     }
