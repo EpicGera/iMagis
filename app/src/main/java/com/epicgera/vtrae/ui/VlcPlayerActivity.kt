@@ -17,7 +17,12 @@ import android.widget.FrameLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import com.epicgera.vtrae.R
+import com.epicgera.vtrae.utils.SubtitleManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.videolan.libvlc.LibVLC
 import org.videolan.libvlc.Media
 import org.videolan.libvlc.MediaPlayer
@@ -35,6 +40,11 @@ class VlcPlayerActivity : AppCompatActivity(), IVLCVout.Callback {
 
     private var videoUrl: String? = null
     private var videoTitle: String? = null
+
+    // ── Subtitle metadata ──
+    private var contentId: String? = null
+    private var contentType: String? = null
+    private var episodeLabel: String? = null
 
     // ── Controller auto-hide ──
     private val hideHandler = Handler(Looper.getMainLooper())
@@ -82,6 +92,9 @@ class VlcPlayerActivity : AppCompatActivity(), IVLCVout.Callback {
         // Read intent
         videoUrl = intent.getStringExtra("VIDEO_URL")
         videoTitle = intent.getStringExtra("TITLE")
+        contentId = intent.getStringExtra("CONTENT_ID")
+        contentType = intent.getStringExtra("CONTENT_TYPE") ?: "MOVIE"
+        episodeLabel = intent.getStringExtra("EPISODE_LABEL")
 
         if (videoUrl.isNullOrEmpty()) {
             finish()
@@ -167,6 +180,39 @@ class VlcPlayerActivity : AppCompatActivity(), IVLCVout.Callback {
         mediaPlayer!!.media = media
         media.release()
         mediaPlayer!!.play()
+
+        // ── Auto-load Spanish subtitles (async, never blocks playback) ──
+        loadSpanishSubtitles()
+    }
+
+    private fun loadSpanishSubtitles() {
+        val tmdbIdRaw = contentId?.toIntOrNull() ?: return
+        val type = contentType ?: "MOVIE"
+        val episodePair = SubtitleManager.parseEpisodeLabel(episodeLabel)
+
+        lifecycleScope.launch {
+            val srtFile = SubtitleManager.fetchSpanishSubtitle(
+                context = this@VlcPlayerActivity,
+                tmdbId = tmdbIdRaw,
+                contentType = type,
+                seasonNumber = episodePair?.first,
+                episodeNumber = episodePair?.second
+            ) ?: return@launch
+
+            // Inject SRT into VLC via addSlave (type 1 = subtitle)
+            withContext(Dispatchers.Main) {
+                mediaPlayer?.addSlave(
+                    1,  // org.videolan.libvlc.MediaPlayer.Slave.Type.Subtitle
+                    Uri.fromFile(srtFile),
+                    true  // select immediately
+                )
+                android.widget.Toast.makeText(
+                    this@VlcPlayerActivity,
+                    "🇪🇸 Subtítulos en español cargados",
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
     }
 
     private fun updateVideoSurface() {
