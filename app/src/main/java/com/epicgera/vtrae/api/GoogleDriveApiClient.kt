@@ -124,7 +124,8 @@ object GoogleDriveApiClient {
         val response = service.listFiles(query = query, apiKey = API_KEY)
 
         return response.files.mapNotNull { file ->
-            val streamUrl = "https://drive.google.com/uc?export=download&id=${file.id}"
+            // Use Drive API v3 direct media endpoint — bypasses redirect/virus-scan pages
+            val streamUrl = "https://www.googleapis.com/drive/v3/files/${file.id}?alt=media&key=$API_KEY"
             DriveVideoFile(
                 id = file.id,
                 name = file.name,
