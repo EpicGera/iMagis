@@ -76,3 +76,6 @@ __pycache__/
 crop_banner.py
 refactor.py
 replace_traces.py
+
+# Heap dumps
+*.hprof
