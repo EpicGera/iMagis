@@ -321,7 +321,7 @@ class MainActivity : ComponentActivity() {
 
     private fun handleDriveVideoClick(video: DriveVideoFile) {
         val intent = Intent(this, VideoPlayerActivity::class.java)
-        intent.putExtra("STREAM_URL", video.streamUrl)
+        intent.putExtra("VIDEO_URL", video.streamUrl)
         intent.putExtra("TITLE", video.displayTitle)
         startActivity(intent)
         overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
