@@ -11,8 +11,13 @@
     <string name="nav_platforms">Platforms</string>
     <string name="nav_favorites">Favorites</string>
     <string name="nav_history">History</string>
-    <string name="nav_downloads">Downloads</string>
+    <string name="nav_downloads">Cloud</string>
     <string name="nav_settings">Settings</string>
+
+    <!-- Cloud Videos (Google Drive) -->
+    <string name="loading_cloud">Loading cloud videos…</string>
+    <string name="no_cloud_videos">No videos found in cloud folder</string>
+    <string name="cloud_video_error">Cloud error: %1$s</string>
 
     <!-- Settings -->
     <string name="settings_language">Language</string>

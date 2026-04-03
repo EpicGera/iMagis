@@ -53,6 +53,7 @@ import androidx.tv.foundation.lazy.list.itemsIndexed
 import coil.compose.AsyncImage
 import com.epicgera.vtrae.api.Movie
 import com.epicgera.vtrae.data.AnimeSeries
+import com.epicgera.vtrae.api.DriveVideoFile
 import com.epicgera.vtrae.ui.components.HeroSpotlight
 import com.epicgera.vtrae.ui.components.PulsingFlixLoader
 import com.epicgera.vtrae.ui.components.ShimmerPosterCard
@@ -105,11 +106,14 @@ val SUB_TAB_CATEGORIES = setOf(NavCategory.TRENDING, NavCategory.POPULAR, NavCat
 fun CatalogScreen(
     contentMap: Map<String, List<Movie>> = emptyMap(),
     animeDirectory: List<AnimeSeries> = emptyList(),
+    driveVideos: List<DriveVideoFile> = emptyList(),
+    driveLoading: Boolean = false,
     onMovieClick: (Movie) -> Unit = {},
     onAnimeSeriesClick: (AnimeSeries) -> Unit = {},
     onSearchAnime: (String) -> Unit = {},
     onSearchContent: (String) -> Unit = {},
     onNavClick: (NavCategory) -> Unit = {},
+    onDriveVideoClick: (DriveVideoFile) -> Unit = {},
 ) {
     var selectedCategory by remember { mutableStateOf(NavCategory.TRENDING) }
     var selectedSubTab by remember { mutableStateOf(ContentSubTab.MOVIES) }
@@ -140,8 +144,8 @@ fun CatalogScreen(
                 selectedSubTab = ContentSubTab.MOVIES
                 when (category) {
                     NavCategory.LIVE_TV,
-                    NavCategory.DOWNLOADS,
                     NavCategory.SETTINGS -> onNavClick(category)
+                    NavCategory.DOWNLOADS -> onNavClick(category) // Cloud: lazy-loads inline
                     NavCategory.FAVORITES,
                     NavCategory.HISTORY -> onNavClick(category)
                     else -> { /* content category — grid updates */ }
@@ -290,6 +294,25 @@ fun CatalogScreen(
                         AnimeGrid(
                             animes = filteredAnime,
                             onAnimeClick = onAnimeSeriesClick,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
+                } else if (selectedCategory == NavCategory.DOWNLOADS) {
+                    // CLOUD: Google Drive Videos Grid (inline)
+                    if (driveLoading) {
+                        PulsingFlixLoader(message = stringResource(R.string.loading_cloud))
+                    } else if (driveVideos.isEmpty()) {
+                        Text(
+                            text = stringResource(R.string.no_cloud_videos),
+                            color = FlixGray,
+                            fontFamily = FontFamily.SansSerif,
+                            fontWeight = FontWeight.Normal,
+                            fontSize = 16.sp,
+                        )
+                    } else {
+                        DriveVideoGrid(
+                            videos = driveVideos,
+                            onVideoClick = onDriveVideoClick,
                             modifier = Modifier.fillMaxSize(),
                         )
                     }
@@ -684,3 +707,123 @@ private fun AnimeSeriesCard(
     }
 }
 
+// ── CLOUD: DRIVE VIDEO GRID ────────────────────────────────
+
+@Composable
+fun DriveVideoGrid(
+    videos: List<DriveVideoFile>,
+    onVideoClick: (DriveVideoFile) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    TvLazyVerticalGrid(
+        columns = TvGridCells.Adaptive(200.dp),
+        modifier = modifier,
+        contentPadding = PaddingValues(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        items(videos.size, key = { videos[it].id }) { index ->
+            DriveVideoCard(
+                video = videos[index],
+                onClick = { onVideoClick(videos[index]) },
+            )
+        }
+    }
+}
+
+// ── CLOUD: DRIVE VIDEO CARD ────────────────────────────────
+
+@Composable
+fun DriveVideoCard(
+    video: DriveVideoFile,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var isFocused by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(if (isFocused) 1.05f else 1f, label = "scale")
+    val borderColor by animateColorAsState(
+        if (isFocused) FlixRed else Color.Transparent, label = "border"
+    )
+
+    Box(
+        modifier = modifier
+            .scale(scale)
+            .height(160.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .border(2.dp, borderColor, RoundedCornerShape(12.dp))
+            .background(FlixCardSurface)
+            .onFocusChanged { isFocused = it.isFocused }
+            .focusable()
+            .clickable(onClick = onClick),
+    ) {
+        // Thumbnail (if available)
+        if (video.thumbnailUrl != null) {
+            AsyncImage(
+                model = video.thumbnailUrl,
+                contentDescription = video.displayTitle,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
+        }
+
+        // Gradient overlay
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f)),
+                        startY = 40f,
+                    )
+                ),
+        )
+
+        // Cloud badge (top-right)
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(6.dp)
+                .clip(RoundedCornerShape(6.dp))
+                .background(FlixRed.copy(alpha = 0.9f))
+                .padding(horizontal = 8.dp, vertical = 3.dp),
+        ) {
+            Text(
+                text = "☁",
+                fontSize = 11.sp,
+                color = FlixWhite,
+            )
+        }
+
+        // Size badge (top-left)
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(6.dp)
+                .clip(RoundedCornerShape(6.dp))
+                .background(Color.Black.copy(alpha = 0.7f))
+                .padding(horizontal = 8.dp, vertical = 3.dp),
+        ) {
+            Text(
+                text = video.displaySize,
+                fontSize = 10.sp,
+                color = FlixGold,
+                fontFamily = FontFamily.SansSerif,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+
+        // Title (bottom)
+        Text(
+            text = video.displayTitle,
+            color = FlixWhite,
+            fontFamily = FontFamily.SansSerif,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 13.sp,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(10.dp),
+        )
+    }
+}

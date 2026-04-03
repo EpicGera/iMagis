@@ -21,6 +21,10 @@ android {
 
         // OpenSubtitles API key (consumer: JDB9891, anonymous access enabled)
         buildConfigField("String", "OPENSUBTITLES_API_KEY", "\"8fTdDxazunUUKcLCd8YzSMLN6Ad5uEul\"")
+
+        // Google Drive Cloud Videos
+        buildConfigField("String", "GOOGLE_DRIVE_API_KEY", "\"AIzaSyDaT8aVmZEImNxZ2XSJL8fWuX01UsVB2yg\"")
+        buildConfigField("String", "GOOGLE_DRIVE_FOLDER_ID", "\"1mO0ricChifJ8mRlv_YmrJS-8DS4fc8WM\"")
     }
 
     buildTypes {

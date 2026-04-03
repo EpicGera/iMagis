@@ -11,6 +11,8 @@ import androidx.activity.compose.setContent
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.lifecycle.lifecycleScope
+import com.epicgera.vtrae.api.DriveVideoFile
+import com.epicgera.vtrae.api.GoogleDriveApiClient
 import com.epicgera.vtrae.api.Movie
 import com.epicgera.vtrae.api.TmdbApiClient
 import com.epicgera.vtrae.data.AnimeSeries
@@ -46,6 +48,11 @@ class MainActivity : ComponentActivity() {
     private val contentMap = mutableStateMapOf<String, List<Movie>>()
     private val animeDirectory = mutableStateListOf<AnimeSeries>()
 
+    // ── CLOUD (Google Drive) STATE ─────────────────────────
+    private val driveVideos = mutableStateListOf<DriveVideoFile>()
+    private val driveLoading = androidx.compose.runtime.mutableStateOf(false)
+    private var driveLoaded = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -54,16 +61,20 @@ class MainActivity : ComponentActivity() {
                 CatalogScreen(
                     contentMap = contentMap,
                     animeDirectory = animeDirectory,
+                    driveVideos = driveVideos,
+                    driveLoading = driveLoading.value,
                     onMovieClick = { movie -> handleMovieClick(movie) },
                     onAnimeSeriesClick = { series -> handleAnimeSeriesClick(series) },
                     onSearchAnime = { query -> handleSearchAnime(query) },
                     onSearchContent = { query -> handleSearchContent(query) },
                     onNavClick = { category -> handleNavClick(category) },
+                    onDriveVideoClick = { video -> handleDriveVideoClick(video) },
                 )
             }
         }
 
         // Background work
+        GoogleDriveApiClient.init(this)
         initializeDatabase()
         loadTmdbContent()
         loadLocalContent()
@@ -265,8 +276,8 @@ class MainActivity : ComponentActivity() {
                 overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
             }
             NavCategory.DOWNLOADS -> {
-                startActivity(Intent(this, DownloadsActivity::class.java))
-                overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
+                // Cloud tab: lazy-load Drive videos on first click
+                loadDriveVideos()
             }
             NavCategory.SETTINGS -> {
                 startActivity(Intent(this, SettingsActivity::class.java))
@@ -279,6 +290,41 @@ class MainActivity : ComponentActivity() {
             }
             else -> { /* content categories update the grid via state */ }
         }
+    }
+
+    // ── GOOGLE DRIVE CLOUD ─────────────────────────────────
+
+    private fun loadDriveVideos(forceRefresh: Boolean = false) {
+        if (driveLoaded && !forceRefresh) return
+        driveLoading.value = true
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val videos = GoogleDriveApiClient.listVideos()
+                withContext(Dispatchers.Main) {
+                    driveVideos.clear()
+                    driveVideos.addAll(videos)
+                    driveLoaded = true
+                    driveLoading.value = false
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                withContext(Dispatchers.Main) {
+                    driveLoading.value = false
+                    com.epicgera.vtrae.ui.components.VtrToastManager.showError(
+                        getString(R.string.cloud_video_error, e.message)
+                    )
+                }
+            }
+        }
+    }
+
+    private fun handleDriveVideoClick(video: DriveVideoFile) {
+        val intent = Intent(this, VideoPlayerActivity::class.java)
+        intent.putExtra("STREAM_URL", video.streamUrl)
+        intent.putExtra("TITLE", video.displayTitle)
+        startActivity(intent)
+        overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
     }
 
     // ── LOCAL DB CONTENT (Favorites + History) ──────────────
